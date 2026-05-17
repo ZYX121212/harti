@@ -1,5 +1,5 @@
 idf_component_register(
-    SRCS "main.c" "app_display.c"
+    SRCS "main.c" "app_display.c" "app_sensors.c"
     INCLUDE_DIRS "."
-    REQUIRES driver
+    REQUIRES driver expressive_eyes gc9a01 harti_imu harti_temp
 )
