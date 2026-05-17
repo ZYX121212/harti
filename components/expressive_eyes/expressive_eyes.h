@@ -31,12 +31,20 @@ typedef struct {
     float blush_level;    // 腮红 (0.0-1.0)
     float tear_level;     // 眼泪 (0.0-1.0)
     float star_level;     // 星星眼 (0.0-1.0)
+    bool heart_mode;      // true = 虹膜绘制为心形
 } eye_state_t;
+
+typedef enum {
+    COLOR_SCHEME_WHITE = 0,
+    COLOR_SCHEME_BLACK,
+    COLOR_SCHEME_COUNT
+} color_scheme_t;
 
 void eyes_init(void);
 void eyes_set_state(const eye_state_t *state);
 void eyes_render_frame(void);
 void eyes_blend(const eye_state_t *a, const eye_state_t *b, float t, eye_state_t *out);
+void eyes_set_color_scheme(color_scheme_t scheme);
 
 // 预设状态
 extern const eye_state_t EYE_STATE_NEUTRAL;
@@ -47,6 +55,7 @@ extern const eye_state_t EYE_STATE_SLEEPY;
 extern const eye_state_t EYE_STATE_ANGRY;
 extern const eye_state_t EYE_STATE_BORED;
 extern const eye_state_t EYE_STATE_EXCITED;
+extern const eye_state_t EYE_STATE_HEART_EYES;
 
 #ifdef __cplusplus
 }
