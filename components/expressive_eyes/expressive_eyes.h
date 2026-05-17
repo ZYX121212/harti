@@ -61,6 +61,10 @@ extern const eye_state_t EYE_STATE_CONTENT;
 extern const eye_state_t EYE_STATE_COLD;
 extern const eye_state_t EYE_STATE_WARM;
 
+/** 可选: 每行渲染后、SPI发送前调用, 用于叠加特效 */
+typedef void (*eyes_post_line_cb_t)(int y, uint16_t *line_buf, int width);
+extern eyes_post_line_cb_t eyes_post_line_cb;
+
 #ifdef __cplusplus
 }
 #endif

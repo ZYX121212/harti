@@ -2,54 +2,58 @@
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_log.h"
-#include "esp_system.h"
 
 #include "app_display.h"
-#include "../components/gc9a01/gc9a01.h"
+#include "app_sensors.h"
+#include "app_behavior.h"
+#include "app_effects.h"
+#include "app_ble.h"
+#include "expressive_eyes.h"
+#include "gc9a01.h"
 
 static const char *TAG = "harti";
 
-void app_main(void)
-{
+#define DISPLAY_TASK_STACK 4096
+#define DISPLAY_TASK_PRIO  5
+
+// ── 显示任务 (60fps) ─────────────────────────────────
+
+static void display_task(void *arg) {
+    ESP_LOGI(TAG, "Display task started");
+    display_set_emotion(EMOTION_NEUTRAL);
+
+    TickType_t last_wake = xTaskGetTickCount();
+    while (1) {
+        display_update();
+        effects_update(1.0f / 60.0f);
+        vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(16));
+    }
+}
+
+// ── 主入口 ───────────────────────────────────────────
+
+void app_main(void) {
     ESP_LOGI(TAG, "Harti starting...");
 
-    // 初始化显示
+    // 硬件初始化
     gc9a01_init();
     display_init();
 
-    ESP_LOGI(TAG, "Entering main loop");
+    // 注册特效叠加回调 (每行渲染后、SPI发送前调用)
+    eyes_post_line_cb = effects_apply_line;
 
-    // 表情演示序列
-    emotion_t sequence[] = {
-        EMOTION_NEUTRAL,
-        EMOTION_HAPPY,
-        EMOTION_NEUTRAL,
-        EMOTION_SURPRISED,
-        EMOTION_NEUTRAL,
-        EMOTION_SAD,
-        EMOTION_NEUTRAL,
-        EMOTION_ANGRY,
-        EMOTION_NEUTRAL,
-        EMOTION_EXCITED,
-        EMOTION_BORED,
-        EMOTION_SLEEPY,
-        EMOTION_NEUTRAL,
-    };
-    int seq_len = sizeof(sequence) / sizeof(sequence[0]);
-    int seq_idx = 0;
+    // 启动传感器任务, 获取事件队列
+    QueueHandle_t sensor_queue = sensors_start();
 
-    int frame_count = 0;
+    // 启动 BLE 任务 (stub)
+    ble_start();
 
-    while (1) {
-        display_update();
-        frame_count++;
+    // 启动行为任务 (消费传感器事件)
+    behavior_start(sensor_queue);
 
-        // 每 2 秒切换一次表情
-        if (frame_count % 120 == 0) {
-            seq_idx = (seq_idx + 1) % seq_len;
-            display_set_emotion(sequence[seq_idx]);
-        }
+    // 启动显示任务 (最高优先级, 保证 60fps)
+    xTaskCreate(display_task, "display", DISPLAY_TASK_STACK,
+                NULL, DISPLAY_TASK_PRIO, NULL);
 
-        vTaskDelay(pdMS_TO_TICKS(16)); // ~60fps
-    }
+    ESP_LOGI(TAG, "All tasks started");
 }

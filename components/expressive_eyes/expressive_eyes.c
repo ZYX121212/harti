@@ -2,6 +2,7 @@
 #include "../gc9a01/gc9a01.h"
 #include <string.h>
 #include <math.h>
+#include <stdlib.h>
 
 #define SCREEN_W 240
 #define SCREEN_H 240
@@ -73,6 +74,7 @@ static const int8_t heart_row_half[27] = {
 static eye_state_t current_state;
 static uint16_t line_buf[SCREEN_W];
 static color_scheme_t current_scheme = COLOR_SCHEME_WHITE;
+eyes_post_line_cb_t eyes_post_line_cb = NULL;
 
 static inline const color_palette_t *get_palette(void)
 {
@@ -630,6 +632,11 @@ void eyes_render_frame(void)
         render_blush(y, current_state.blush_level);
         render_tears(y, current_state.tear_level);
         render_stars(y, current_state.star_level);
+
+        // 特效叠加回调 (app_effects)
+        if (eyes_post_line_cb) {
+            eyes_post_line_cb(y, line_buf, SCREEN_W);
+        }
 
         // 发送这一行
         gc9a01_send_pixels(line_buf, SCREEN_W);
