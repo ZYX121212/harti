@@ -1,12 +1,14 @@
 #include "app_display.h"
-#include "../components/expressive_eyes/expressive_eyes.h"
+#include "expressive_eyes.h"
 #include "esp_log.h"
+#include "esp_random.h"
 #include <math.h>
 
 static const char *TAG = "display";
 
 // 当前状态
 static emotion_t current_emotion = EMOTION_NEUTRAL;
+static emotion_t previous_emotion = EMOTION_NEUTRAL;
 static emotion_t target_emotion = EMOTION_NEUTRAL;
 static float transition_t = 1.0f; // 0-1, 1 表示完成
 
@@ -34,6 +36,11 @@ static const eye_state_t *get_emotion_state(emotion_t e)
         case EMOTION_ANGRY: return &EYE_STATE_ANGRY;
         case EMOTION_BORED: return &EYE_STATE_BORED;
         case EMOTION_EXCITED: return &EYE_STATE_EXCITED;
+        case EMOTION_CONFUSED: return &EYE_STATE_CONFUSED;
+        case EMOTION_CONTENT:  return &EYE_STATE_CONTENT;
+        case EMOTION_COLD:     return &EYE_STATE_COLD;
+        case EMOTION_WARM:     return &EYE_STATE_WARM;
+        case EMOTION_HEART_EYES: return &EYE_STATE_HEART_EYES;
         default: return &EYE_STATE_NEUTRAL;
     }
 }
@@ -50,9 +57,18 @@ void display_set_emotion(emotion_t emotion)
     if (emotion == target_emotion) return;
 
     ESP_LOGI(TAG, "Set emotion: %d", emotion);
+    previous_emotion = current_emotion;
     target_emotion = emotion;
     transition_t = 0;
 }
+
+void display_set_color_scheme(color_scheme_t scheme)
+{
+    if (scheme >= COLOR_SCHEME_COUNT) return;
+    eyes_set_color_scheme(scheme);
+    ESP_LOGI(TAG, "Set color scheme: %d", scheme);
+}
+
 
 void display_update(void)
 {
@@ -60,7 +76,9 @@ void display_update(void)
     if (transition_t < 1.0f) {
         transition_t += 0.04f;
         if (transition_t > 1.0f) transition_t = 1.0f;
-        current_emotion = target_emotion;
+        if (transition_t >= 1.0f) {
+            current_emotion = target_emotion;
+        }
     }
 
     // 2. 随机眨眼
@@ -118,7 +136,7 @@ void display_update(void)
 
     // 如果在过渡中，和之前的表情混合
     if (transition_t < 1.0f) {
-        const eye_state_t *prev = get_emotion_state((current_emotion == target_emotion) ? EMOTION_NEUTRAL : current_emotion);
+        const eye_state_t *prev = get_emotion_state(previous_emotion);
         eye_state_t blended;
         float t = ease_out_cubic(transition_t);
         eyes_blend(prev, &state, t, &blended);

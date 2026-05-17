@@ -56,6 +56,10 @@ extern const eye_state_t EYE_STATE_ANGRY;
 extern const eye_state_t EYE_STATE_BORED;
 extern const eye_state_t EYE_STATE_EXCITED;
 extern const eye_state_t EYE_STATE_HEART_EYES;
+extern const eye_state_t EYE_STATE_CONFUSED;
+extern const eye_state_t EYE_STATE_CONTENT;
+extern const eye_state_t EYE_STATE_COLD;
+extern const eye_state_t EYE_STATE_WARM;
 
 #ifdef __cplusplus
 }

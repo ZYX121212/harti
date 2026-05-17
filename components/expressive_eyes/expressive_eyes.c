@@ -233,6 +233,50 @@ const eye_state_t EYE_STATE_HEART_EYES = {
     .heart_mode = true,
 };
 
+const eye_state_t EYE_STATE_CONFUSED = {
+    .eye_offset_x = 0, .eye_offset_y = 2,
+    .eye_separation = 52,
+    .left_lid_open = 0.85f, .right_lid_open = 0.70f, // 一高一低
+    .pupil_x = 0.3f, .pupil_y = 0.1f, // 看一边
+    .pupil_scale = 0.5f,
+    .curve_up = 0.15f, .curve_down = -0.15f, // 眉毛不对称
+    .blush_level = 0.1f, .tear_level = 0, .star_level = 0,
+    .heart_mode = false,
+};
+
+const eye_state_t EYE_STATE_CONTENT = {
+    .eye_offset_x = 0, .eye_offset_y = 0,
+    .eye_separation = 52,
+    .left_lid_open = 0.3f, .right_lid_open = 0.3f, // 几乎闭合的弯月眼
+    .pupil_x = 0, .pupil_y = 0,
+    .pupil_scale = 0.55f,
+    .curve_up = 0.7f, .curve_down = 0, // 明显的上弯
+    .blush_level = 0.75f, .tear_level = 0, .star_level = 0.2f,
+    .heart_mode = false,
+};
+
+const eye_state_t EYE_STATE_COLD = {
+    .eye_offset_x = 0, .eye_offset_y = 3,
+    .eye_separation = 52,
+    .left_lid_open = 0.5f, .right_lid_open = 0.5f,
+    .pupil_x = 0, .pupil_y = 0.2f,
+    .pupil_scale = 0.4f, // 缩小瞳孔
+    .curve_up = 0, .curve_down = 0,
+    .blush_level = 0.3f, .tear_level = 0, .star_level = 0,
+    .heart_mode = false,
+};
+
+const eye_state_t EYE_STATE_WARM = {
+    .eye_offset_x = 0, .eye_offset_y = -2,
+    .eye_separation = 52,
+    .left_lid_open = 0.7f, .right_lid_open = 0.7f,
+    .pupil_x = 0, .pupil_y = -0.15f,
+    .pupil_scale = 0.65f,
+    .curve_up = 0.3f, .curve_down = 0,
+    .blush_level = 0.5f, .tear_level = 0, .star_level = 0.3f,
+    .heart_mode = false,
+};
+
 static inline uint16_t blend_colors(uint16_t c1, uint16_t c2, float t)
 {
     if (t <= 0) return c1;
