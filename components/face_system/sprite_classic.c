@@ -53,6 +53,11 @@ static void build_bg_lut(const uint16_t *pal) {
 
 /* ── draw_face: radial gradient background ───────────────── */
 static void draw_face(int y, const face_state_t *st, const sprite_set_t *sp, uint16_t *buf) {
+    // Lazy-build the background gradient LUT when palette changes
+    if (active_pal != sp->pal) {
+        build_bg_lut(sp->pal);
+        active_pal = sp->pal;
+    }
     int dy = y - CENTER_Y;
     int dy_sq = dy * dy;
     for (int x = 0; x < SCREEN_W; x++) {
@@ -166,7 +171,6 @@ static void draw_brow_impl(int y, const brow_params_t *bp, int eye_cx, int eye_c
 
     float inner_x = eye_cx + bp->inner.dx * 25.0f;
     float inner_y = brow_y_px + bp->inner.dy * 15.0f;
-    float arch_x  = eye_cx + bp->arch.dx * 15.0f;
     float arch_y  = brow_y_px + bp->arch.dy * 20.0f;
     float tail_x  = eye_cx + bp->tail.dx * 30.0f;
     float tail_y  = brow_y_px + bp->tail.dy * 15.0f;
@@ -205,7 +209,6 @@ static void draw_mouth(int y, const face_state_t *st, const sprite_set_t *sp, ui
     int mouth_cy = CENTER_Y + (int)sp->mouth_y_center;
 
     float half_width = 25.0f;
-    float dy = y - mouth_cy;
     int x_start = CENTER_X - (int)half_width - 3;
     int x_end   = CENTER_X + (int)half_width + 3;
     if (x_start < 0) x_start = 0;
