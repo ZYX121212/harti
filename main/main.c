@@ -26,11 +26,10 @@ static void lvgl_tick_cb(void *arg) {
 
 static void display_task(void *arg) {
     ESP_LOGI(TAG, "Display task started");
-    face_set_expression(0);  // NEUTRAL
+    display_set_emotion(EMOTION_NEUTRAL);
 
     while (1) {
-        face_animator_tick();
-        face_render_frame();
+        display_update();
         effects_update(1.0f / 60.0f);
         vTaskDelay(pdMS_TO_TICKS(50));
     }
@@ -55,7 +54,7 @@ void app_main(void) {
 
     // Hardware init
     gc9a01_init();
-    face_init();  // was display_init()
+    display_init();
 
     // Register effects callback
     face_post_line_cb = effects_apply_line;

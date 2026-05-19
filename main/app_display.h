@@ -3,7 +3,6 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include "expressive_eyes.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -28,8 +27,7 @@ typedef enum {
 
 void display_init(void);
 void display_set_emotion(emotion_t emotion);
-void display_set_color_scheme(color_scheme_t scheme);
-void display_update(void); // 每帧调用，处理动画
+void display_update(void);
 
 #ifdef __cplusplus
 }
