@@ -11,3 +11,6 @@
 *.swo
 *~
 .claude/
+
+# ESP-IDF managed dependencies
+/managed_components/
