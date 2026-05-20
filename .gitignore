@@ -19,4 +19,8 @@ eim_config.toml
 .claude/
 # ESP-IDF managed dependencies
 /managed_components/
+dependencies.lock
 .superpowers/
+
+# Local preview assets (not needed in repo)
+docs/assets/
