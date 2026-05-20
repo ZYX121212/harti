@@ -6,6 +6,7 @@
 static const brow_params_t BROW_NEUTRAL = {
     .inner = {0, 0}, .arch = {0, 0}, .tail = {0, 0},
     .thickness = 1.0f,
+    .taper = 0.6f,
 };
 
 static const eye_params_t EYE_NEUTRAL = {
@@ -494,5 +495,8 @@ const expression_def_t EXPRESSION_DEFS[] = {
 
 const uint8_t EXPRESSION_COUNT = sizeof(EXPRESSION_DEFS) / sizeof(EXPRESSION_DEFS[0]);
 
-/* ── Classic sprite set (defined in sprite_classic.c) ────── */
+/* ── Sprite sets (defined in sprite_*.c) ──────────────────── */
 extern const sprite_set_t SPRITE_CLASSIC;
+extern const sprite_set_t SPRITE_CAT;
+extern const sprite_set_t SPRITE_PIXEL;
+extern const sprite_set_t SPRITE_ROBOT;

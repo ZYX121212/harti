@@ -5,6 +5,9 @@
 #include "face_animator.h"
 #include "face_renderer.h"
 #include "sprite_classic.h"
+#include "sprite_cat.h"
+#include "sprite_pixel.h"
+#include "sprite_robot.h"
 
 #ifdef __cplusplus
 extern "C" {
