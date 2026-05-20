@@ -63,15 +63,22 @@ idf.py -p /dev/tty.usbmodem* flash monitor
 harti/
 ├── main/
 │   ├── main.c              # 入口，创建 FreeRTOS 任务
-│   ├── app_display.c/h     # 表情渲染 + 微动画
+│   ├── app_display.c/h     # 表情管理 + 微动画 (封装 face_api)
 │   ├── app_sensors.c/h     # 传感器事件检测 (IMU/触摸/温度)
 │   ├── app_behavior.c/h    # 行为状态机 + 关系管理
 │   ├── app_effects.c/h     # 特效渲染 (星星/心心/彩虹/金光)
 │   ├── app_ble.c/h         # BLE 碰一碰通信 (stub)
 │   └── CMakeLists.txt
 ├── components/
+│   ├── face_system/        # 面部表情系统 (四层架构)
+│   │   ├── face_model.h/c     # 数据模型 + 13 种表情预设
+│   │   ├── face_animator.h/c  # 基于 LVGL 的动画引擎
+│   │   ├── face_renderer.h/c  # 扫描线渲染器
+│   │   ├── face_api.h         # 统一公共接口
+│   │   ├── face_palette.h     # 5 套调色板定义
+│   │   ├── sprite_classic.h/c # 经典精灵 (默认)
+│   │   └── sprites/           # 额外精灵 (cat/pixel/robot)
 │   ├── gc9a01/             # GC9A01 屏幕驱动 (SPI)
-│   ├── expressive_eyes/    # 表情渲染引擎 (极低内存, ~480 字节)
 │   ├── harti_imu/          # IMU 驱动 (MPU6050, I2C)
 │   └── harti_temp/         # 温度传感器驱动 (NTC + ADC)
 ├── docs/
@@ -80,11 +87,44 @@ harti/
 │   ├── INTERACTION.md      # 交互设计
 │   ├── PRODUCT.md          # 产品定义
 │   ├── resources.md        # GPIO 资源映射
-│   └── assets/             # 产品图片
+│   └── assets/             # 产品图片 & 面部预览
 └── CMakeLists.txt
 ```
 
-## 表情列表 (13 种)
+## 面部表情系统
+
+四层组件化架构，扫描线渲染（每行 ~480 字节缓冲）：
+
+| 层 | 文件 | 职责 |
+|----|------|------|
+| **Face API** | `face_api.h` | 统一对外接口，封装所有内部细节 |
+| **Face Animator** | `face_animator.h/c` | 基于 LVGL `lv_anim_t` 的逐组件动画插值 |
+| **Face Renderer** | `face_renderer.h/c` | 8-pass z-order 扫描线合成器 |
+| **Face Model** | `face_model.h/c` | 7 组件参数结构体 + 13 种表情预设 |
+
+### 8-pass 渲染层级 (z-order)
+```
+face → blush → mouth → eyes → brows → decor overlay
+```
+
+### 精灵 (4 套)
+| 精灵 | 调色板 | 特点 |
+|------|--------|------|
+| **Classic** | 白色/黑色 | 圆形眼睛，二次贝塞尔眉毛，舌头渲染 |
+| **Cat** | 暗色+金色 | 竖缝瞳孔，三角猫耳，Ω 形嘴，胡须 |
+| **Pixel** | 高亮 8-bit | 4px 网格量化，纯色无反锯齿 |
+| **Robot** | 金属蓝 | 六角形眼眶，LED 辉光，面板线 |
+
+### 微动画 (5 种)
+| 动画 | 描述 |
+|------|------|
+| Blink + Wink | 眨眼 (1/5 概率单眼) |
+| Breath | 面部圆润度振荡 |
+| Saccade | 虹膜微动 + 随机大幅跳变 |
+| Brow Twitch | 左右眉毛独立微颤 |
+| Mouth Idle | 嘴巴间歇开合 |
+
+### 表情列表 (13 种)
 
 | 表情 | 触发方式 |
 |------|---------|
@@ -102,6 +142,10 @@ harti/
 | WARM - 温暖 | 被捂热 |
 | HEART_EYES - 心心眼 | 挚友碰面 |
 
+### 预览
+
+打开 `docs/assets/face-preview.html` 可在浏览器中预览所有表情、精灵和微动画效果。
+
 ## 内存占用
 
-仅使用 **~480 字节** 行缓冲，无全屏帧缓冲！
+扫描线渲染，仅使用 **~480 字节** 行缓冲 + 面部状态结构体，无全屏帧缓冲。
