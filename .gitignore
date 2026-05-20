@@ -24,3 +24,4 @@ dependencies.lock
 
 # Local preview assets (not needed in repo)
 docs/assets/
+docs/superpowers/
