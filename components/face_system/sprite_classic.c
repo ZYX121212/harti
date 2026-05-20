@@ -104,8 +104,8 @@ static void draw_eye_impl(int y, const eye_params_t *ep,
     if (lid_open < 0.05f) lid_open = 0.05f;
     if (lid_open > 1.0f) lid_open = 1.0f;
 
-    float base_top = -eye_r * (1.0f - lid_open);
-    float base_bot =  eye_r * (1.0f - lid_open);
+    float base_top = -eye_r * lid_open;
+    float base_bot =  eye_r * lid_open;
 
     float sh_cx = iris_cx - 6.0f, sh_cy = iris_cy - 7.0f;
     float sh_r = 5.5f, sh_r_sq = sh_r * sh_r;
