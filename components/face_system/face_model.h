@@ -27,6 +27,7 @@ typedef struct {
     face_kpt_t arch;
     face_kpt_t tail;
     float thickness;
+    float taper;
 } brow_params_t;
 
 typedef struct {
