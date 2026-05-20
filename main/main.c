@@ -59,18 +59,14 @@ void app_main(void) {
     // Register effects callback
     face_post_line_cb = effects_apply_line;
 
-    // Start sensor task, get event queue
-    QueueHandle_t sensor_queue = sensors_start();
-
-    // Start BLE task (stub)
-    ble_start();
-
-    // Start behavior task (consumes sensor events)
-    behavior_start(sensor_queue);
-
-    // Start display task (highest priority, 60fps)
+    // Start display task first (highest priority, screen visible immediately)
     xTaskCreate(display_task, "display", DISPLAY_TASK_STACK,
                 NULL, DISPLAY_TASK_PRIO, NULL);
+
+    // Sensors/behavior/BLE delayed start, avoid init issues affecting display
+    QueueHandle_t sensor_queue = sensors_start();
+    ble_start();
+    behavior_start(sensor_queue);
 
     ESP_LOGI(TAG, "All tasks started");
 }

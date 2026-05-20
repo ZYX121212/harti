@@ -2,7 +2,6 @@
 #define APP_EFFECTS_H
 
 #include <stdint.h>
-#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,12 +25,6 @@ void effects_update(float dt);
 // 每扫描行调用, 在渲染眼睛后叠加特效
 // line_buf: 该行像素buffer, screen_w: 屏幕宽度(固定240)
 void effects_apply_line(int y, uint16_t *line_buf, int screen_w);
-
-// 释放当前特效
-void effects_clear(void);
-
-// 特效是否正在播放中
-bool effects_is_active(void);
 
 #ifdef __cplusplus
 }

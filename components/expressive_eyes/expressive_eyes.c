@@ -38,13 +38,13 @@ static const color_palette_t PALETTE_WHITE = {
 
 static const color_palette_t PALETTE_BLACK = {
     .bg      = RGB(0, 0, 0),        // 纯黑背景
-    .bg_edge = RGB(20, 20, 20),     // 深灰边缘
-    .sclera  = RGB(35, 35, 35),     // 深灰眼眶
-    .iris    = RGB(160, 160, 160),  // 中灰虹膜 (发光感)
-    .pupil   = RGB(255, 255, 255),  // 纯白瞳孔
-    .blush   = RGB(60, 30, 30),     // 暗红腮红
-    .tear    = RGB(40, 60, 80),     // 暗蓝眼泪
-    .shine   = RGB(255, 255, 255),  // 白色高光
+    .bg_edge = RGB(0, 0, 0),        // 纯黑（无渐变）
+    .sclera  = RGB(58, 58, 62),     // 暗灰眼白
+    .iris    = RGB(82, 80, 85),     // 暖灰虹膜（略深于眼白，可见层次）
+    .pupil   = RGB(4, 4, 6),        // 极暗瞳孔
+    .blush   = RGB(30, 18, 18),     // 极淡暖红腮红
+    .tear    = RGB(30, 40, 55),     // 暗蓝眼泪
+    .shine   = RGB(255, 255, 255),  // 纯白高光
     .star    = RGB(255, 255, 100),  // 亮黄星星
 };
 
@@ -73,7 +73,7 @@ static const int8_t heart_row_half[27] = {
 
 static eye_state_t current_state;
 static uint16_t line_buf[SCREEN_W];
-static color_scheme_t current_scheme = COLOR_SCHEME_WHITE;
+static color_scheme_t current_scheme = COLOR_SCHEME_BLACK;
 eyes_post_line_cb_t eyes_post_line_cb = NULL;
 
 static inline const color_palette_t *get_palette(void)
@@ -341,146 +341,116 @@ static void build_bg_gradient_lut(void)
     }
 }
 
-// 渲染单只眼睛
+// 渲染单只眼睛 (简约风格: 弧形眼睑 + 虹膜径向渐变 + 单高光)
 static void render_eye(int y, int eye_cx, int eye_cy, float lid_open,
                        float pup_x, float pup_y, float pup_scale,
                        float curve_up, float curve_down, bool is_left)
 {
     const color_palette_t *pal = get_palette();
-    const float eye_r = 36.0f;              // 眼睛半径
-    const float iris_r = 20.0f;             // 虹膜半径
-    const float pupil_base_r = 10.0f;       // 瞳孔基础半径
-
-    // 心形查表偏移: y从-13到+13 (共27行)
+    const float eye_r = 36.0f;
+    const float iris_r = 30.0f;
+    const float pupil_base_r = 13.0f;
     const int heart_table_offset = 13;
 
-    // 边界框裁剪 (多留1像素给边缘抗锯齿)
+    // 边界框
     int x_start = eye_cx - (int)eye_r - 2;
-    int x_end = eye_cx + (int)eye_r + 2;
-    if (x_start < 0) x_start = 0;
+    int x_end   = eye_cx + (int)eye_r + 2;
+    if (x_start < 0)  x_start = 0;
     if (x_end >= SCREEN_W) x_end = SCREEN_W - 1;
 
-    // 快速跳过不在眼睛内的扫描行
     float fy = y - eye_cy;
-    if (fy < -eye_r - 1.5f || fy > eye_r + 1.5f) return;
+    if (fy < -eye_r - 2.0f || fy > eye_r + 2.0f) return;
 
-    // 预计算虹膜/瞳孔位置 (不变量)
-    float iris_cx = pup_x * 8.0f;
-    float iris_cy = pup_y * 8.0f;
+    // 虹膜/高光位置 (环形不变量)
+    float iris_cx = pup_x * 7.0f;
+    float iris_cy = pup_y * 7.0f;
     float iris_r_sq = iris_r * iris_r;
-    float pupil_r = pupil_base_r * pup_scale;
+    float pupil_r  = pupil_base_r * pup_scale;
     float pupil_r_sq = pupil_r * pupil_r;
-    float pupil2_cx = iris_cx + pup_x * 2;
-    float pupil2_cy = iris_cy + pup_y * 2;
 
-    // 眼睑遮罩
     float lid_curve = curve_up - curve_down;
-    float top_lid_y = -eye_r * (1.0f - lid_open) - lid_curve * 15.0f;
-    float bot_lid_y = eye_r * (1.0f - lid_open) + lid_curve * 10.0f;
+    float base_top  = -eye_r * (1.0f - lid_open) - lid_curve * 12.0f;
+    float base_bot  =  eye_r * (1.0f - lid_open) + lid_curve * 8.0f;
 
-    // 高光位置 (主高光 + 副高光)
-    const float shine1_cx = -8.0f, shine1_cy = -10.0f;
-    const float shine2_cx = 5.0f, shine2_cy = -5.0f;
+    // 单高光 (虹膜左上, 柔和)
+    float sh_cx = iris_cx - 6.0f, sh_cy = iris_cy - 7.0f;
+    float sh_r = 5.5f, sh_r_sq = sh_r * sh_r;
+
+    // 预先查表: 虹膜暗色 (径向渐变终点)
+    uint16_t iris_dark = blend_colors(pal->iris, pal->pupil, 0.65f);
 
     for (int x = x_start; x <= x_end; x++) {
         float fx = x - eye_cx;
-
-        // 计算到眼睛中心的距离
         float r_sq = fx * fx + fy * fy;
-        float eye_r_sq = eye_r * eye_r;
+        if (r_sq >= eye_r * eye_r) continue;
 
-        if (r_sq >= eye_r_sq) continue;
+        // ── 弧形眼睑 ──
+        float arc = 1.0f - (fx * fx) / (eye_r * eye_r);
+        float top_lid = base_top + 5.0f * lid_open * arc;
+        float bot_lid = base_bot - 3.0f * lid_open * arc;
 
-        // 边缘抗锯齿: 在眼睛边缘1.5像素内做渐变
-        // 仅在可能接近边缘时计算 sqrtf (优化: 用 r_sq 范围预判)
-        float r_sq_min = (eye_r - 1.5f) * (eye_r - 1.5f);
-        bool is_edge = (r_sq >= r_sq_min);
+        bool under_lid = (fy < top_lid || fy > bot_lid);
+
+        // 边缘抗锯齿
+        float edge_dist = eye_r - sqrtf(r_sq);
+        bool is_edge = (edge_dist < 1.5f);
+
+        if (under_lid) continue;
 
         if (is_edge) {
-            float edge_dist = eye_r - sqrtf(r_sq);
-            // 边缘过渡: 用背景色和眼睛内容色混合
             float aa = edge_dist / 1.5f;
-            if (fy < top_lid_y || fy > bot_lid_y) {
-                // 被眼睑遮挡的边缘
-                line_buf[x] = blend_colors(line_buf[x], pal->sclera, aa * 0.3f);
-            } else {
-                // 可见边缘 - 计算内部颜色
-                float iris_d_sq = dist_sq(fx, fy, iris_cx, iris_cy);
-                float pupil_d_sq = dist_sq(fx, fy, pupil2_cx, pupil2_cy);
-                float shine1_d_sq = dist_sq(fx, fy, shine1_cx, shine1_cy);
-                float shine2_d_sq = dist_sq(fx, fy, shine2_cx, shine2_cy);
+            float iris_d_sq = dist_sq(fx, fy, iris_cx, iris_cy);
+            float sh_d_sq   = dist_sq(fx, fy, sh_cx, sh_cy);
 
-                uint16_t inner_color;
-                if (shine1_d_sq < 25.0f && iris_d_sq < iris_r_sq)
-                    inner_color = blend_colors(pal->iris, pal->shine, 0.9f);
-                else if (shine2_d_sq < 9.0f && iris_d_sq < iris_r_sq)
-                    inner_color = blend_colors(pal->iris, pal->shine, 0.7f);
-                else if (pupil_d_sq < pupil_r_sq)
-                    inner_color = pal->pupil;
-                else if (iris_d_sq < iris_r_sq)
-                    inner_color = pal->iris;
-                else
-                    inner_color = pal->sclera;
-
-                line_buf[x] = blend_colors(line_buf[x], inner_color, aa);
+            uint16_t inner;
+            if (sh_d_sq < sh_r_sq && iris_d_sq < iris_r_sq)
+                inner = blend_colors(pal->iris, pal->shine, 0.85f);
+            else if (iris_d_sq < pupil_r_sq)
+                inner = pal->pupil;
+            else if (iris_d_sq < iris_r_sq) {
+                float grad_t = sqrtf(iris_d_sq) / iris_r;
+                inner = blend_colors(pal->iris, iris_dark, grad_t * grad_t);
             }
+            else {
+                // 无眼白: 虹膜外像素保持背景
+                continue;
+            }
+
+            line_buf[x] = blend_colors(line_buf[x], inner, aa);
             continue;
         }
 
-        // 在眼睛内部 (非边缘)
-        {
-            bool visible = true;
-            if (fy < top_lid_y) visible = false;
-            if (fy > bot_lid_y) visible = false;
+        // ── 眼睛内部 ──
+        if (current_state.heart_mode) {
+            int hx = (int)(fx - iris_cx);
+            int hy = (int)(fy - iris_cy);
+            int row = hy + heart_table_offset;
+            bool in_heart = false;
+            if (row >= 0 && row < 27) {
+                int mx = heart_row_half[row];
+                if (mx > 0 && abs(hx) <= mx) in_heart = true;
+            }
+            if (in_heart) {
+                float sh_d_sq = dist_sq(fx, fy, sh_cx, sh_cy);
+                if (sh_d_sq < sh_r_sq)
+                    line_buf[x] = blend_colors(pal->iris, pal->shine, 0.85f);
+                else
+                    line_buf[x] = pal->iris;
+            }
+        } else {
+            float iris_d_sq  = dist_sq(fx, fy, iris_cx, iris_cy);
+            float pupil_d_sq = dist_sq(fx, fy,
+                iris_cx + pup_x * 2.0f, iris_cy + pup_y * 2.0f);
+            float sh_d_sq    = dist_sq(fx, fy, sh_cx, sh_cy);
 
-            if (visible) {
-                float iris_d_sq = dist_sq(fx, fy, iris_cx, iris_cy);
-                float pupil_d_sq = dist_sq(fx, fy, pupil2_cx, pupil2_cy);
-                float shine1_d_sq = dist_sq(fx, fy, shine1_cx, shine1_cy);
-                float shine2_d_sq = dist_sq(fx, fy, shine2_cx, shine2_cy);
-
-                if (current_state.heart_mode) {
-                    // 心形虹膜: 用查表判断
-                    int hx = (int)(fx - iris_cx);
-                    int hy = (int)(fy - iris_cy);
-                    int row = hy + heart_table_offset;
-                    bool in_heart = false;
-                    if (row >= 0 && row < 27) {
-                        int max_x = heart_row_half[row];
-                        if (max_x > 0 && abs(hx) <= max_x) {
-                            in_heart = true;
-                        }
-                    }
-                    if (in_heart) {
-                        // 高光
-                        if (shine1_d_sq < 25.0f) {
-                            line_buf[x] = blend_colors(pal->iris, pal->shine, 0.85f);
-                        } else if (shine2_d_sq < 9.0f) {
-                            line_buf[x] = blend_colors(pal->iris, pal->shine, 0.65f);
-                        } else {
-                            line_buf[x] = pal->iris;
-                        }
-                    }
-                    // 心形眼无瞳孔，sclera 已在背景层中
-                } else {
-                    // 原始圆形虹膜
-                    // 主高光 (大) + 副高光 (小)
-                    if (shine1_d_sq < 25.0f && iris_d_sq < iris_r_sq) {
-                        line_buf[x] = blend_colors(line_buf[x], pal->shine, 0.9f);
-                    }
-                    else if (shine2_d_sq < 9.0f && iris_d_sq < iris_r_sq) {
-                        line_buf[x] = blend_colors(line_buf[x], pal->shine, 0.7f);
-                    }
-                    else if (pupil_d_sq < pupil_r_sq) {
-                        line_buf[x] = pal->pupil;
-                    }
-                    else if (iris_d_sq < iris_r_sq) {
-                        line_buf[x] = pal->iris;
-                    }
-                    else {
-                        line_buf[x] = pal->sclera;
-                    }
-                }
+            if (sh_d_sq < sh_r_sq && iris_d_sq < iris_r_sq) {
+                float t = (1.0f - sh_d_sq / sh_r_sq) * 0.88f;
+                line_buf[x] = blend_colors(pal->iris, pal->shine, t);
+            } else if (iris_d_sq < iris_r_sq) {
+                float grad_t = sqrtf(iris_d_sq) / iris_r;
+                line_buf[x] = blend_colors(pal->iris, iris_dark, grad_t * grad_t);
+            } else if (pupil_d_sq < pupil_r_sq) {
+                line_buf[x] = pal->pupil;
             }
         }
     }
@@ -598,7 +568,7 @@ void eyes_render_frame(void)
 {
     gc9a01_set_window(0, 0, SCREEN_W - 1, SCREEN_H - 1);
 
-    const color_palette_t *pal = get_palette();
+    bool is_black = (current_scheme == COLOR_SCHEME_BLACK);
 
     // 眼睛中心位置
     float sep_half = current_state.eye_separation * 0.5f;
@@ -607,8 +577,12 @@ void eyes_render_frame(void)
     int eye_cy = CENTER_Y + current_state.eye_offset_y;
 
     for (int y = 0; y < SCREEN_H; y++) {
-        // 1. 背景层：径向渐变 (使用 LUT + 整数平方根)
-        {
+        // 1. 背景层
+        if (is_black) {
+            // 纯黑背景: 快速填充
+            memset(line_buf, 0, sizeof(line_buf));
+        } else {
+            // 白色主题: 径向渐变 LUT
             int dy = y - CENTER_Y;
             int dy_sq = dy * dy;
             for (int x = 0; x < SCREEN_W; x++) {
@@ -676,6 +650,6 @@ void eyes_set_color_scheme(color_scheme_t scheme)
 void eyes_init(void)
 {
     current_state = EYE_STATE_NEUTRAL;
-    current_scheme = COLOR_SCHEME_WHITE;
+    current_scheme = COLOR_SCHEME_BLACK;
     build_bg_gradient_lut();
 }

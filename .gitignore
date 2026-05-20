@@ -6,11 +6,17 @@
 /.vscode/
 .DS_Store
 
+# Development tool cache
+.cache/
+
+# ESP-IDF Installation Manager
+eim_config.toml
+
 # Temporary files
 *.swp
 *.swo
 *~
 .claude/
-
 # ESP-IDF managed dependencies
 /managed_components/
+.superpowers/

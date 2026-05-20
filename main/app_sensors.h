@@ -18,7 +18,6 @@ typedef enum {
     EVT_FLIP,
     EVT_WARM_UP,
     EVT_COLD_DOWN,
-    EVT_TEMP_STABLE,
     EVT_BLE_MEET,
     EVT_BLE_FRIEND,
 } sensor_event_t;

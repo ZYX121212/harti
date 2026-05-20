@@ -26,9 +26,6 @@ extern "C" {
 void gc9a01_init(void);
 void gc9a01_set_window(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1);
 void gc9a01_send_pixels(const uint16_t *pixels, size_t len);
-void gc9a01_fill_rect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color);
-void gc9a01_fill_screen(uint16_t color);
-void gc9a01_set_backlight(uint8_t level); // 0-100
 
 #ifdef __cplusplus
 }

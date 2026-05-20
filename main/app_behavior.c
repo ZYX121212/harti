@@ -38,17 +38,15 @@ static void transition_to(behavior_state_t state, emotion_t emo) {
 // ── 空闲检查 (每秒调用) ─────────────────────────────
 
 static void check_idle(void) {
-    if (current_state == STATE_IDLE) {
-        TickType_t now = xTaskGetTickCount();
-        int elapsed_s = (now - last_event_ticks) * portTICK_PERIOD_MS / 1000;
+    TickType_t now = xTaskGetTickCount();
+    int elapsed_s = (now - last_event_ticks) * portTICK_PERIOD_MS / 1000;
 
-        if (elapsed_s >= IDLE_SLEEPY_SEC && current_state == STATE_IDLE) {
-            transition_to(STATE_SLEEPY, EMOTION_SLEEPY);
-            ESP_LOGI(TAG, "IDLE → SLEEPY (%ds)", elapsed_s);
-        } else if (elapsed_s >= IDLE_BORED_SEC && current_state == STATE_IDLE) {
-            transition_to(STATE_BORED, EMOTION_BORED);
-            ESP_LOGI(TAG, "IDLE → BORED (%ds)", elapsed_s);
-        }
+    if (elapsed_s >= IDLE_SLEEPY_SEC && current_state != STATE_SLEEPY) {
+        transition_to(STATE_SLEEPY, EMOTION_SLEEPY);
+        ESP_LOGI(TAG, "→ SLEEPY (%ds)", elapsed_s);
+    } else if (elapsed_s >= IDLE_BORED_SEC && current_state == STATE_IDLE) {
+        transition_to(STATE_BORED, EMOTION_BORED);
+        ESP_LOGI(TAG, "IDLE → BORED (%ds)", elapsed_s);
     }
 }
 

@@ -27,15 +27,6 @@ void effects_trigger(effect_type_t type) {
     effect_timer = 0;
 }
 
-void effects_clear(void) {
-    current_effect = EFFECT_NONE;
-    effect_timer = 0;
-}
-
-bool effects_is_active(void) {
-    return current_effect != EFFECT_NONE;
-}
-
 void effects_update(float dt) {
     if (current_effect == EFFECT_NONE) return;
     effect_timer += dt;

@@ -2,17 +2,20 @@
 #include "harti_imu.h"
 #include "harti_temp.h"
 #include "driver/i2c_master.h"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcpp"
 #include "driver/touch_pad.h"
+#pragma GCC diagnostic pop
 #include "esp_log.h"
 #include "freertos/task.h"
 #include <math.h>
 
 static const char *TAG = "sensors";
 
-// Pin 配置 (可根据硬件调整)
-#define I2C_SCL_IO  GPIO_NUM_15
-#define I2C_SDA_IO  GPIO_NUM_16
-#define TOUCH_PAD   TOUCH_PAD_NUM0  // GPIO0 电容触摸
+// Pin 配置 (与 HARDWARE.md 一致)
+#define I2C_SCL_IO  GPIO_NUM_9
+#define I2C_SDA_IO  GPIO_NUM_8
+#define TOUCH_PAD   TOUCH_PAD_NUM0  // GPIO1 电容触摸 (ESP32-S3: TOUCH0=GPIO1)
 
 #define SENSOR_TASK_STACK  2048
 #define SENSOR_TASK_PRIO   3
@@ -191,19 +194,33 @@ static void sensor_task(void *arg) {
         .flags.enable_internal_pullup = true,
     };
     i2c_master_bus_handle_t bus;
-    ESP_ERROR_CHECK(i2c_new_master_bus(&i2c_cfg, &bus));
+    esp_err_t err = i2c_new_master_bus(&i2c_cfg, &bus);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "I2C bus init failed: %s, sensors disabled", esp_err_to_name(err));
+        vTaskDelete(NULL);
+        return;
+    }
 
     // IMU 初始化
-    ESP_ERROR_CHECK(imu_init(bus));
+    err = imu_init(bus);
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "IMU init failed: %s, sensors disabled", esp_err_to_name(err));
+        i2c_del_master_bus(bus);
+        vTaskDelete(NULL);
+        return;
+    }
 
     // 触摸初始化
     touch_pad_init();
     touch_pad_config(TOUCH_PAD);
     touch_pad_set_voltage(TOUCH_HVOLT_2V7, TOUCH_LVOLT_0V5, TOUCH_HVOLT_ATTEN_1V);
-    touch_pad_filter_start(10);
+    touch_pad_filter_enable();
 
     // 温度初始化
-    ESP_ERROR_CHECK(temp_init());
+    err = temp_init();
+    if (err != ESP_OK) {
+        ESP_LOGW(TAG, "Temp init failed: %s, continuing without temp", esp_err_to_name(err));
+    }
 
     ESP_LOGI(TAG, "All sensors initialized");
 

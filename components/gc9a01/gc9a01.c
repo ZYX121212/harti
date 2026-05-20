@@ -1,22 +1,23 @@
 #include "gc9a01.h"
 #include "driver/spi_master.h"
 #include "driver/gpio.h"
-#include "driver/ledc.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "esp_log.h"
 #include <string.h>
 
 static const char *TAG = "GC9A01";
 
-// 引脚定义 (来自 HARDWARE.md)
-#define PIN_SDA  11
-#define PIN_SCK  12
-#define PIN_RES  5
-#define PIN_DC   4
-#define PIN_CS   6
-#define PIN_BLK  7
+// 引脚定义 (根据实际排线连接)
+#define PIN_SDA  35   // SPI MOSI
+#define PIN_SCK  36   // SPI SCK
+#define PIN_RES  42   // LCD RST
+#define PIN_DC   41   // LCD DC (数据/命令)
+#define PIN_CS   40   // LCD CS (片选)
+#define PIN_BLK  -1   // 无独立背光引脚 (VCC 供电即亮)
 
 #define SPI_HOST  SPI2_HOST
-#define SPI_FREQ  40000000  // 40MHz
+#define SPI_FREQ  10000000  // 10MHz (排线连接降速确保稳定)
 
 static spi_device_handle_t spi_dev;
 
@@ -39,11 +40,6 @@ static void gc9a01_send_data(const uint8_t *data, size_t len)
         .tx_buffer = data,
     };
     spi_device_polling_transmit(spi_dev, &t);
-}
-
-static void gc9a01_send_byte(uint8_t data)
-{
-    gc9a01_send_data(&data, 1);
 }
 
 void gc9a01_set_window(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1)
@@ -73,33 +69,6 @@ void gc9a01_send_pixels(const uint16_t *pixels, size_t len)
         .tx_buffer = pixels,
     };
     spi_device_polling_transmit(spi_dev, &t);
-}
-
-void gc9a01_fill_rect(uint16_t x, uint16_t y, uint16_t w, uint16_t h, uint16_t color)
-{
-    gc9a01_set_window(x, y, x + w - 1, y + h - 1);
-
-    static uint16_t line_buf[GC9A01_WIDTH];
-    for (int i = 0; i < w; i++) {
-        line_buf[i] = color;
-    }
-
-    for (int i = 0; i < h; i++) {
-        gc9a01_send_pixels(line_buf, w);
-    }
-}
-
-void gc9a01_fill_screen(uint16_t color)
-{
-    gc9a01_fill_rect(0, 0, GC9A01_WIDTH, GC9A01_HEIGHT, color);
-}
-
-void gc9a01_set_backlight(uint8_t level)
-{
-    if (level > 100) level = 100;
-    // PWM 占空比 0-100%
-    ledc_set_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0, (uint32_t)level * 255 / 100);
-    ledc_update_duty(LEDC_LOW_SPEED_MODE, LEDC_CHANNEL_0);
 }
 
 // GC9A01 初始化序列
@@ -160,15 +129,16 @@ void gc9a01_init(void)
 {
     ESP_LOGI(TAG, "Initializing GC9A01...");
 
-    // GPIO 初始化
+    // GPIO 初始化 (DC, RES, CS)
     gpio_config_t io_conf = {
-        .pin_bit_mask = (1ULL << PIN_DC) | (1ULL << PIN_RES),
+        .pin_bit_mask = (1ULL << PIN_DC) | (1ULL << PIN_RES) | (1ULL << PIN_CS),
         .mode = GPIO_MODE_OUTPUT,
         .pull_up_en = GPIO_PULLUP_DISABLE,
         .pull_down_en = GPIO_PULLDOWN_DISABLE,
         .intr_type = GPIO_INTR_DISABLE,
     };
-    gpio_config(&io_conf);
+    ESP_ERROR_CHECK(gpio_config(&io_conf));
+    gpio_set_level(PIN_CS, 1);  // 片选初始高
 
     // SPI 初始化
     spi_bus_config_t bus_cfg = {
@@ -179,7 +149,7 @@ void gc9a01_init(void)
         .quadhd_io_num = -1,
         .max_transfer_sz = GC9A01_WIDTH * 2 * 2, // 两行
     };
-    spi_bus_initialize(SPI_HOST, &bus_cfg, SPI_DMA_CH_AUTO);
+    ESP_ERROR_CHECK(spi_bus_initialize(SPI_HOST, &bus_cfg, SPI_DMA_CH_AUTO));
 
     spi_device_interface_config_t dev_cfg = {
         .clock_speed_hz = SPI_FREQ,
@@ -190,28 +160,7 @@ void gc9a01_init(void)
         .address_bits = 0,
         .dummy_bits = 0,
     };
-    spi_bus_add_device(SPI_HOST, &dev_cfg, &spi_dev);
-
-    // 背光 PWM 初始化
-    ledc_timer_config_t timer_cfg = {
-        .speed_mode = LEDC_LOW_SPEED_MODE,
-        .duty_resolution = LEDC_TIMER_8_BIT,
-        .timer_num = LEDC_TIMER_0,
-        .freq_hz = 1000,
-        .clk_cfg = LEDC_AUTO_CLK,
-    };
-    ledc_timer_config(&timer_cfg);
-
-    ledc_channel_config_t channel_cfg = {
-        .gpio_num = PIN_BLK,
-        .speed_mode = LEDC_LOW_SPEED_MODE,
-        .channel = LEDC_CHANNEL_0,
-        .intr_type = LEDC_INTR_DISABLE,
-        .timer_sel = LEDC_TIMER_0,
-        .duty = 0,
-        .hpoint = 0,
-    };
-    ledc_channel_config(&channel_cfg);
+    ESP_ERROR_CHECK(spi_bus_add_device(SPI_HOST, &dev_cfg, &spi_dev));
 
     // 硬件复位
     gpio_set_level(PIN_RES, 0);
@@ -236,10 +185,6 @@ void gc9a01_init(void)
 
     // 开启显示
     gc9a01_send_cmd(0x29);
-
-    // 清屏并点亮背光
-    gc9a01_fill_screen(COLOR_BLACK);
-    gc9a01_set_backlight(80);
 
     ESP_LOGI(TAG, "GC9A01 initialized");
 }
