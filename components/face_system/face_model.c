@@ -22,10 +22,6 @@ static const mouth_params_t MOUTH_NEUTRAL = {
     .openness = 0.0f,
 };
 
-static const face_params_t FACE_NEUTRAL = {
-    .roundness = 0.5f,
-};
-
 static const decor_params_t DECOR_NEUTRAL = {0};
 
 const face_state_t FACE_STATE_NEUTRAL = {

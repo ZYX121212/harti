@@ -226,7 +226,9 @@ static void draw_decor_overlay(int y, const face_state_t *st,
 
     // Panel lines: vertical seams
     if (y >= CENTER_Y - 60 && y <= CENTER_Y + 60) {
-        for (int px : {CENTER_X - 50, CENTER_X + 50}) {
+        int panel_xs[2] = {CENTER_X - 50, CENTER_X + 50};
+        for (int pi = 0; pi < 2; pi++) {
+            int px = panel_xs[pi];
             if (px < 0 || px >= SCREEN_W) continue;
             buf[px] = blend_colors(buf[px], pal[PAL_BROW], 0.25f);
             if (px + 1 < SCREEN_W) buf[px + 1] = blend_colors(buf[px + 1], pal[PAL_BROW], 0.15f);

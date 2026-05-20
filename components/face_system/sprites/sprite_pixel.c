@@ -1,6 +1,7 @@
 #include "sprite_pixel.h"
 #include "face_palette.h"
 #include <math.h>
+#include <stdlib.h>
 
 #define SCREEN_W 240
 #define SCREEN_H 240

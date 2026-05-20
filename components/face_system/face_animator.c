@@ -134,7 +134,8 @@ static void anim_exec_cb(void *var, int32_t value) {
     }
     if (idx < 0) return;
     float t = value / 1024.0f;
-    if (t < 0) t = 0; if (t > 1) t = 1;
+    if (t < 0) t = 0;
+    if (t > 1) t = 1;
 
     face_component_t comp = (face_component_t)idx;
     lerp_funcs[comp](from_states[comp], anim_data[comp].target, t,

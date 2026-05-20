@@ -1,6 +1,7 @@
 #include "sprite_cat.h"
 #include "face_palette.h"
 #include <math.h>
+#include <stdlib.h>
 
 #define SCREEN_W 240
 #define SCREEN_H 240
@@ -290,12 +291,11 @@ static void draw_decor_overlay(int y, const face_state_t *st,
                 int wx_start = side ? base_x : base_x - 22;
                 int wx_end   = side ? base_x + 22 : base_x;
                 float angle = (w - 1) * 0.25f;
-                float w_dy = (side ? -angle : angle) * (x - wx_start);
                 // Draw curved whisker lines
                 for (int x = wx_start; x <= wx_end; x++) {
                     if (x < 0 || x >= SCREEN_W) continue;
                     float wy_curve = wy + sinf((float)(x - base_x) * 0.15f) * 3.0f;
-                    if (fabsf(y - wy_curve) < 1.5f && fabsf(x - base_x) > 4.0f) {
+                    if (fabsf(y - wy_curve) < 1.5f && abs(x - base_x) > 4) {
                         buf[x] = blend_colors(buf[x], pal[PAL_BROW], 0.4f);
                     }
                 }
