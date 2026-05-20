@@ -60,9 +60,20 @@ static void draw_face(int y, const face_state_t *st, const sprite_set_t *sp, uin
     }
     int dy = y - CENTER_Y;
     int dy_sq = dy * dy;
+    float roundness = st->face.roundness;
     for (int x = 0; x < SCREEN_W; x++) {
         int dx = x - CENTER_X;
-        int d = fast_isqrt(dx * dx + dy_sq);
+        float manhattan = fabsf((float)dx) + fabsf((float)dy);
+        float euclidean = sqrtf((float)(dx * dx + dy_sq));
+        // r=0 → diamond (manhattan), r=0.5 → circle (euclidean), r=1 → circle
+        float mixed;
+        if (roundness <= 0.5f) {
+            mixed = manhattan + (euclidean - manhattan) * (roundness * 2.0f);
+        } else {
+            mixed = euclidean;
+        }
+        if (mixed < 0.0f) mixed = 0.0f;
+        int d = (int)mixed;
         if (d >= BG_GRADIENT_MAX) d = BG_GRADIENT_MAX - 1;
         buf[x] = bg_lut[d];
     }
@@ -107,8 +118,12 @@ static void draw_eye_impl(int y, const eye_params_t *ep,
         if (r_sq >= eye_r * eye_r) continue;
 
         float arc = 1.0f - (fx * fx) / (eye_r * eye_r);
-        float top_lid = base_top + 5.0f * lid_open * arc;
-        float bot_lid = base_bot - 3.0f * lid_open * arc;
+        // Inner/outer corner adjustments
+        float inner_adj = ep->inner_corner.dy * 5.0f;
+        float outer_adj = ep->outer_corner.dy * 5.0f;
+        float corner_adj = inner_adj + (outer_adj - inner_adj) * ((fx + eye_r) / (2.0f * eye_r));
+        float top_lid = base_top + (5.0f * lid_open * arc) + corner_adj * 0.5f;
+        float bot_lid = base_bot - (3.0f * lid_open * arc) - corner_adj * 0.3f;
         if (fy < top_lid || fy > bot_lid) continue;
 
         float edge_dist = eye_r - sqrtf(r_sq);
@@ -166,8 +181,8 @@ static void draw_brow_impl(int y, const brow_params_t *bp, int eye_cx, int eye_c
                            const sprite_set_t *sp, const uint16_t *pal, uint16_t *buf) {
     float brow_y_px = eye_cy + sp->brow_y_offset;
     float dy = y - brow_y_px;
-    float half_thick = bp->thickness * 4.0f;
-    if (dy < -half_thick - 2 || dy > half_thick + 2) return;
+    float base_width = bp->thickness * 4.0f;
+    if (dy < -base_width - 2 || dy > base_width + 2) return;
 
     float inner_x = eye_cx + bp->inner.dx * 25.0f;
     float inner_y = brow_y_px + bp->inner.dy * 15.0f;
@@ -183,6 +198,11 @@ static void draw_brow_impl(int y, const brow_params_t *bp, int eye_cx, int eye_c
     for (int x = x_start; x <= x_end; x++) {
         float t = (float)(x - inner_x) / (tail_x - inner_x + 0.001f);
         if (t < 0.0f || t > 1.0f) continue;
+
+        float inner_mult = 1.0f - bp->taper * 0.3f;
+        float tail_mult = 1.0f - bp->taper * 0.6f;
+        float width_mult = inner_mult + (tail_mult - inner_mult) * t;
+        float half_thick = base_width * width_mult;
 
         float curve_y = (1-t)*(1-t)*inner_y + 2*(1-t)*t*arch_y + t*t*tail_y;
         float dist = fabsf(y - curve_y);
@@ -216,6 +236,8 @@ static void draw_mouth(int y, const face_state_t *st, const sprite_set_t *sp, ui
 
     float lcx = CENTER_X + mp->left_corner.dx * half_width;
     float rcx = CENTER_X + mp->right_corner.dx * half_width;
+    float lcy = mouth_cy + mp->left_corner.dy * 12.0f;
+    float rcy = mouth_cy + mp->right_corner.dy * 12.0f;
     float uly = mouth_cy + mp->upper_lip_mid.dy * 15.0f;
     float lly = mouth_cy + mp->lower_lip_mid.dy * 15.0f;
 
@@ -225,12 +247,30 @@ static void draw_mouth(int y, const face_state_t *st, const sprite_set_t *sp, ui
         float t = (x - lcx) / (rcx - lcx + 0.001f);
         if (t < 0.0f || t > 1.0f) continue;
 
-        float upper_y = (1-t)*(1-t)*mouth_cy + 2*(1-t)*t*uly + t*t*mouth_cy;
-        float lower_y = (1-t)*(1-t)*mouth_cy + 2*(1-t)*t*(lly + openness_offset) + t*t*mouth_cy;
+        float corner_y = (1-t) * lcy + t * rcy;
+        float upper_y = (1-t)*(1-t)*corner_y + 2*(1-t)*t*uly + t*t*corner_y;
+        float lower_y = (1-t)*(1-t)*corner_y + 2*(1-t)*t*(lly + openness_offset) + t*t*corner_y;
 
         if (y >= upper_y - 1.5f && y <= lower_y + 1.5f) {
             if (y > upper_y + 1.5f && y < lower_y - 1.5f && mp->openness > 0.05f) {
-                buf[x] = blend_colors(buf[x], sp->pal[PAL_PUPIL], 0.7f);
+                // Tongue in open mouth
+                if (mp->openness > 0.2f) {
+                    float tongue_cx = CENTER_X;
+                    float tongue_cy = (upper_y + lower_y) * 0.5f + openness_offset * 0.3f;
+                    float tongue_rx = half_width * 0.35f;
+                    float tongue_ry = openness_offset * 0.3f;
+                    float fx_t = x - tongue_cx;
+                    float fy_t = y - tongue_cy;
+                    float tongue_dist = (fx_t * fx_t) / (tongue_rx * tongue_rx)
+                                      + (fy_t * fy_t) / (tongue_ry * tongue_ry);
+                    if (tongue_dist < 1.0f) {
+                        buf[x] = blend_colors(buf[x], sp->pal[PAL_TONGUE], 0.85f);
+                    } else {
+                        buf[x] = blend_colors(buf[x], sp->pal[PAL_PUPIL], 0.7f);
+                    }
+                } else {
+                    buf[x] = blend_colors(buf[x], sp->pal[PAL_PUPIL], 0.7f);
+                }
             } else {
                 float alpha = 0.7f;
                 buf[x] = blend_colors(buf[x], sp->pal[PAL_MOUTH], alpha);
