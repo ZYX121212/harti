@@ -20,6 +20,8 @@ typedef struct {
 
 typedef struct {
     float roundness;
+    float squash_x;    /* horizontal squash (-1.0..1.0), transient */
+    float stretch_y;   /* vertical stretch (-1.0..1.0), transient */
 } face_params_t;
 
 typedef struct {
@@ -38,6 +40,8 @@ typedef struct {
     face_kpt_t iris_center;
     float pupil_scale;
     float shine_intensity;
+    float iris_detail;   /* 0..1, limbal ring + tertiary shine intensity */
+    float eyelash;       /* 0..1, eyelash visibility */
 } eye_params_t;
 
 typedef struct {
@@ -46,6 +50,8 @@ typedef struct {
     face_kpt_t upper_lip_mid;
     face_kpt_t lower_lip_mid;
     float openness;
+    float cupid_depth;   /* 0..1, upper lip cupid's bow indentation */
+    float tooth_show;    /* 0..1, teeth visibility when mouth open */
 } mouth_params_t;
 
 typedef struct {
@@ -82,6 +88,12 @@ typedef struct {
 /* ── Expression preset ───────────────────────────────────── */
 
 typedef uint8_t expression_id_t;
+
+typedef struct {
+    expression_id_t expr_a;
+    expression_id_t expr_b;
+    float blend;          /* 0.0 = pure A, 1.0 = pure B */
+} expression_blend_t;
 
 typedef enum {
     PATH_LINEAR = 0,

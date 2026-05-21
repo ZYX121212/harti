@@ -26,10 +26,16 @@ static void draw_face(int y, const face_state_t *st, const sprite_set_t *sp, uin
     const uint16_t *pal = sp->pal;
     int py = (y / PIXEL_GRID) * PIXEL_GRID;
     int dy = py - CENTER_Y;
+    float sx = 1.0f + st->face.squash_x * 0.3f;
+    float sy = 1.0f + st->face.stretch_y * 0.3f;
+    if (sx < 0.5f) sx = 0.5f;
+    if (sy < 0.5f) sy = 0.5f;
     for (int x = 0; x < SCREEN_W; x++) {
         int px = (x / PIXEL_GRID) * PIXEL_GRID;
         int dx = px - CENTER_X;
-        int d = (int)sqrtf((float)(dx * dx + dy * dy));
+        float dx_s = (float)dx / sx;
+        float dy_s = (float)dy / sy;
+        int d = (int)sqrtf(dx_s * dx_s + dy_s * dy_s);
         float t = (float)d / 130.0f;
         if (t > 1.0f) t = 1.0f;
         buf[x] = blend_colors(pal[PAL_BG], pal[PAL_BG_EDGE], t);
@@ -65,6 +71,14 @@ static void draw_eye_impl(int y, const eye_params_t *ep, int eye_cx, int eye_cy,
         // Simple top lid
         float top_lid = -(eye_sz - 10) * (1.0f - lid_open);
         float bot_lid = (eye_sz - 10) * (1.0f - lid_open);
+
+        /* eyelash: darker pixels above top lid */
+        if (ep->eyelash > 0.01f && fy >= top_lid - PIXEL_GRID && fy < top_lid + 2.0f) {
+            int lash_qx = (x / PIXEL_GRID) * PIXEL_GRID;
+            if ((lash_qx / PIXEL_GRID) % 2 == 0 && fy < top_lid + 1.0f) {
+                buf[x] = blend_colors(buf[x], pal[PAL_PUPIL], ep->eyelash * 0.35f);
+            }
+        }
         if (fy < top_lid || fy > bot_lid) continue;
 
         // Pixel-block iris: pure color, no gradient
@@ -72,13 +86,18 @@ static void draw_eye_impl(int y, const eye_params_t *ep, int eye_cx, int eye_cy,
         int qy = (y / PIXEL_GRID) * PIXEL_GRID;
         int dx = qx - iris_qx;
         int dy = qy - iris_qy;
-        if (dx * dx + dy * dy < iris_r * iris_r) {
+        int iris_dist_sq = dx * dx + dy * dy;
+        if (iris_dist_sq < iris_r * iris_r) {
+            int iris_edge = (iris_r - PIXEL_GRID) * (iris_r - PIXEL_GRID);
             // Pupil: 2x2 grid black block in center
             if (abs(qx - iris_qx) <= PIXEL_GRID && abs(qy - iris_qy) <= PIXEL_GRID) {
                 buf[x] = pal[PAL_PUPIL];
             } else if (abs(qx - iris_qx) <= PIXEL_GRID * 2 && abs(qy - iris_qy - PIXEL_GRID * 2) <= PIXEL_GRID) {
                 // Shine: 1 grid white block
                 buf[x] = blend_colors(pal[PAL_IRIS], pal[PAL_SHINE], 0.7f);
+            } else if (ep->iris_detail > 0.01f && iris_dist_sq > iris_edge) {
+                // iris_detail: dark ring at iris edge
+                buf[x] = blend_colors(pal[PAL_IRIS], pal[PAL_PUPIL], ep->iris_detail * 0.5f);
             } else {
                 buf[x] = pal[PAL_IRIS];
             }
@@ -144,9 +163,22 @@ static void draw_mouth(int y, const face_state_t *st, const sprite_set_t *sp, ui
         int qx = (x / PIXEL_GRID) * PIXEL_GRID;
         float t = (float)(x - x_start) / (x_end - x_start);
         float mouth_y = mqy + mp->openness * 12.0f * sinf(t * 3.14159f);
+        /* cupid_depth: add a small dip at center */
+        if (mp->cupid_depth > 0.01f) {
+            float center_t = 1.0f - fabsf(t - 0.5f) * 2.0f;
+            mouth_y += center_t * center_t * mp->cupid_depth * 3.0f;
+        }
         if (fabsf(qy - mouth_y) <= PIXEL_GRID * 1.5f) {
             buf[x] = blend_colors(buf[x], pal[PAL_MOUTH], 0.9f);
             if (x + 1 < SCREEN_W) buf[x + 1] = buf[x];
+        }
+        /* tooth_show: white pixel line below mouth when open */
+        if (mp->tooth_show > 0.01f && mp->openness > 0.05f) {
+            float tooth_y = mouth_y - PIXEL_GRID;
+            if (fabsf(qy - tooth_y) <= PIXEL_GRID) {
+                buf[x] = blend_colors(buf[x], pal[PAL_SCLERA], mp->tooth_show * 0.6f);
+                if (x + 1 < SCREEN_W) buf[x + 1] = buf[x];
+            }
         }
     }
 }

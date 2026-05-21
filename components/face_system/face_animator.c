@@ -7,6 +7,8 @@
 static void face_params_lerp(const face_params_t *a, const face_params_t *b,
                              float t, face_params_t *out) {
     out->roundness = a->roundness + (b->roundness - a->roundness) * t;
+    out->squash_x = a->squash_x + (b->squash_x - a->squash_x) * t;
+    out->stretch_y = a->stretch_y + (b->stretch_y - a->stretch_y) * t;
 }
 
 static void brow_params_lerp(const brow_params_t *a, const brow_params_t *b,
@@ -34,6 +36,8 @@ static void eye_params_lerp(const eye_params_t *a, const eye_params_t *b,
     out->iris_center.dy = a->iris_center.dy + (b->iris_center.dy - a->iris_center.dy) * t;
     out->pupil_scale = a->pupil_scale + (b->pupil_scale - a->pupil_scale) * t;
     out->shine_intensity = a->shine_intensity + (b->shine_intensity - a->shine_intensity) * t;
+    out->iris_detail = a->iris_detail + (b->iris_detail - a->iris_detail) * t;
+    out->eyelash = a->eyelash + (b->eyelash - a->eyelash) * t;
 }
 
 static void mouth_params_lerp(const mouth_params_t *a, const mouth_params_t *b,
@@ -47,6 +51,8 @@ static void mouth_params_lerp(const mouth_params_t *a, const mouth_params_t *b,
     out->lower_lip_mid.dx = a->lower_lip_mid.dx + (b->lower_lip_mid.dx - a->lower_lip_mid.dx) * t;
     out->lower_lip_mid.dy = a->lower_lip_mid.dy + (b->lower_lip_mid.dy - a->lower_lip_mid.dy) * t;
     out->openness = a->openness + (b->openness - a->openness) * t;
+    out->cupid_depth = a->cupid_depth + (b->cupid_depth - a->cupid_depth) * t;
+    out->tooth_show = a->tooth_show + (b->tooth_show - a->tooth_show) * t;
 }
 
 static void decor_params_lerp(const decor_params_t *a, const decor_params_t *b,

@@ -46,10 +46,15 @@ static void draw_face(int y, const face_state_t *st, const sprite_set_t *sp, uin
         active_pal = sp->pal;
     }
     int dy = y - CENTER_Y;
-    int dy_sq = dy * dy;
+    float sx = 1.0f + st->face.squash_x * 0.3f;
+    float sy = 1.0f + st->face.stretch_y * 0.3f;
+    if (sx < 0.5f) sx = 0.5f;
+    if (sy < 0.5f) sy = 0.5f;
     for (int x = 0; x < SCREEN_W; x++) {
         int dx = x - CENTER_X;
-        int d_sq = dx * dx + dy_sq;
+        float dx_s = (float)dx / sx;
+        float dy_s = (float)dy / sy;
+        int d_sq = (int)(dx_s * dx_s + dy_s * dy_s);
         int d = (int)sqrtf((float)d_sq);
         if (d >= BG_GRADIENT_MAX) d = BG_GRADIENT_MAX - 1;
         buf[x] = bg_lut[d];
@@ -109,9 +114,17 @@ static void draw_eye_impl(int y, const eye_params_t *ep, int eye_cx, int eye_cy,
             } else if (slit_dist < 1.0f) {
                 buf[x] = blend_colors(pal[PAL_PUPIL], pal[PAL_IRIS], (slit_dist - 0.9f) * 10.0f);
             } else {
-                float grad_t = sqrtf(iris_d_sq) / iris_r;
+                float iris_dist = sqrtf(iris_d_sq);
+                float grad_t = iris_dist / iris_r;
                 uint16_t dark = blend_colors(pal[PAL_IRIS], pal[PAL_PUPIL], 0.5f);
-                buf[x] = blend_colors(pal[PAL_IRIS], dark, grad_t * grad_t);
+                uint16_t iris_color = blend_colors(pal[PAL_IRIS], dark, grad_t * grad_t);
+                /* iris_detail: limbal ring near iris edge */
+                if (ep->iris_detail > 0.01f && iris_dist > iris_r * 0.7f) {
+                    float ring_t = (iris_dist - iris_r * 0.7f) / (iris_r * 0.3f);
+                    float ring_alpha = ring_t * ep->iris_detail * 0.4f;
+                    iris_color = blend_colors(iris_color, pal[PAL_PUPIL], ring_alpha);
+                }
+                buf[x] = iris_color;
             }
         }
     }
@@ -193,7 +206,7 @@ static void draw_mouth(int y, const face_state_t *st, const sprite_set_t *sp, ui
         // Omega shape: three-point curve (corner → omega dip → center rise)
         float corner_y = mouth_cy + mp->left_corner.dy * 8.0f * (1-t) + mp->right_corner.dy * 8.0f * t;
         float omega_dip = mouth_cy + 3.0f;
-        float omega_top = mouth_cy - omega_rise;
+        float omega_top = mouth_cy - omega_rise * (1.0f + mp->cupid_depth * 0.6f);
         float upper_y;
         if (t < 0.5f) {
             float tt = t * 2.0f;
@@ -206,7 +219,12 @@ static void draw_mouth(int y, const face_state_t *st, const sprite_set_t *sp, ui
 
         if (y >= upper_y - 1.0f && y <= lower_y + 1.0f) {
             if (y > upper_y + 1.0f && y < lower_y - 1.0f && mp->openness > 0.05f) {
-                if (mp->openness > 0.2f) {
+                /* tooth_show: tiny fangs in upper portion */
+                if (mp->tooth_show > 0.01f && y < upper_y + 1.0f + mp->tooth_show * 4.0f) {
+                    float fang_t = (y - upper_y - 1.0f) / (mp->tooth_show * 4.0f + 0.001f);
+                    float fang_alpha = (1.0f - fang_t) * 0.8f;
+                    buf[x] = blend_colors(buf[x], pal[PAL_SCLERA], fang_alpha);
+                } else if (mp->openness > 0.2f) {
                     buf[x] = blend_colors(buf[x], pal[PAL_TONGUE], 0.8f);
                 } else {
                     buf[x] = blend_colors(buf[x], pal[PAL_PUPIL], 0.6f);

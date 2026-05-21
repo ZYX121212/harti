@@ -59,12 +59,17 @@ static void draw_face(int y, const face_state_t *st, const sprite_set_t *sp, uin
         active_pal = sp->pal;
     }
     int dy = y - CENTER_Y;
-    int dy_sq = dy * dy;
     float roundness = st->face.roundness;
+    float sx = 1.0f + st->face.squash_x * 0.3f;
+    float sy = 1.0f + st->face.stretch_y * 0.3f;
+    if (sx < 0.5f) sx = 0.5f;
+    if (sy < 0.5f) sy = 0.5f;
     for (int x = 0; x < SCREEN_W; x++) {
         int dx = x - CENTER_X;
-        float manhattan = fabsf((float)dx) + fabsf((float)dy);
-        float euclidean = sqrtf((float)(dx * dx + dy_sq));
+        float dx_s = (float)dx / sx;
+        float dy_s = (float)dy / sy;
+        float manhattan = fabsf(dx_s) + fabsf(dy_s);
+        float euclidean = sqrtf(dx_s * dx_s + dy_s * dy_s);
         // r=0 → diamond (manhattan), r=0.5 → circle (euclidean), r=1 → circle
         float mixed;
         if (roundness <= 0.5f) {
@@ -124,6 +129,17 @@ static void draw_eye_impl(int y, const eye_params_t *ep,
         float corner_adj = inner_adj + (outer_adj - inner_adj) * ((fx + eye_r) / (2.0f * eye_r));
         float top_lid = base_top + (5.0f * lid_open * arc) + corner_adj * 0.5f;
         float bot_lid = base_bot - (3.0f * lid_open * arc) - corner_adj * 0.3f;
+
+        /* eyelash: subtle dark strokes above the top lid */
+        if (ep->eyelash > 0.01f && fy >= top_lid - 2.5f && fy < top_lid + 1.0f) {
+            float lash_phase = fabsf(fmodf(fx * 1.9f + 0.7f, 4.0f) - 2.0f);
+            if (lash_phase < 0.6f && fy < top_lid + 0.5f) {
+                float lash_alpha = (1.0f - lash_phase / 0.6f) * ep->eyelash * 0.45f;
+                uint16_t lash_color = blend_colors(pal[PAL_IRIS], pal[PAL_PUPIL], 0.85f);
+                buf[x] = blend_colors(buf[x], lash_color, lash_alpha);
+            }
+        }
+
         if (fy < top_lid || fy > bot_lid) continue;
 
         float edge_dist = eye_r - sqrtf(r_sq);
@@ -156,8 +172,16 @@ static void draw_eye_impl(int y, const eye_params_t *ep,
             float t = (1.0f - sh_d_sq / sh_r_sq) * ep->shine_intensity;
             buf[x] = blend_colors(pal[PAL_IRIS], pal[PAL_SHINE], t);
         } else if (iris_d_sq < iris_r_sq) {
-            float grad_t = sqrtf(iris_d_sq) / iris_r;
-            buf[x] = blend_colors(pal[PAL_IRIS], iris_dark, grad_t * grad_t);
+            float iris_dist = sqrtf(iris_d_sq);
+            float grad_t = iris_dist / iris_r;
+            uint16_t iris_color = blend_colors(pal[PAL_IRIS], iris_dark, grad_t * grad_t);
+            /* iris_detail: limbal ring darkening near iris edge */
+            if (ep->iris_detail > 0.01f && iris_dist > iris_r * 0.7f) {
+                float ring_t = (iris_dist - iris_r * 0.7f) / (iris_r * 0.3f);
+                float ring_alpha = ring_t * ep->iris_detail * 0.45f;
+                iris_color = blend_colors(iris_color, pal[PAL_PUPIL], ring_alpha);
+            }
+            buf[x] = iris_color;
         } else if (pupil_d_sq < pupil_r_sq) {
             buf[x] = pal[PAL_PUPIL];
         }
@@ -249,27 +273,61 @@ static void draw_mouth(int y, const face_state_t *st, const sprite_set_t *sp, ui
 
         float corner_y = (1-t) * lcy + t * rcy;
         float upper_y = (1-t)*(1-t)*corner_y + 2*(1-t)*t*uly + t*t*corner_y;
+        /* cupid's bow: dip at center of upper lip */
+        if (mp->cupid_depth > 0.01f) {
+            float center_dist = 1.0f - fabsf(t - 0.5f) * 2.0f;
+            float dip = center_dist * center_dist * mp->cupid_depth * 4.0f;
+            upper_y += dip;
+        }
         float lower_y = (1-t)*(1-t)*corner_y + 2*(1-t)*t*(lly + openness_offset) + t*t*corner_y;
 
         if (y >= upper_y - 1.5f && y <= lower_y + 1.5f) {
             if (y > upper_y + 1.5f && y < lower_y - 1.5f && mp->openness > 0.05f) {
-                // Tongue in open mouth
-                if (mp->openness > 0.2f) {
-                    float tongue_cx = CENTER_X;
-                    float tongue_cy = (upper_y + lower_y) * 0.5f + openness_offset * 0.3f;
-                    float tongue_rx = half_width * 0.35f;
-                    float tongue_ry = openness_offset * 0.3f;
-                    float fx_t = x - tongue_cx;
-                    float fy_t = y - tongue_cy;
-                    float tongue_dist = (fx_t * fx_t) / (tongue_rx * tongue_rx)
-                                      + (fy_t * fy_t) / (tongue_ry * tongue_ry);
-                    if (tongue_dist < 1.0f) {
-                        buf[x] = blend_colors(buf[x], sp->pal[PAL_TONGUE], 0.85f);
+                /* tooth_show: teeth in upper portion of open mouth */
+                if (mp->tooth_show > 0.01f) {
+                    float cavity_h = (lower_y - 1.5f) - (upper_y + 1.5f);
+                    float rel_y = (y - (upper_y + 1.5f)) / cavity_h;
+                    float tooth_zone = mp->tooth_show * 0.5f;
+                    if (rel_y < tooth_zone) {
+                        float tooth_t = rel_y / (tooth_zone + 0.001f);
+                        float tooth_alpha = (1.0f - tooth_t) * 0.85f;
+                        buf[x] = blend_colors(buf[x], sp->pal[PAL_SCLERA], tooth_alpha);
+                    } else if (mp->openness > 0.2f) {
+                        float tongue_cx = CENTER_X;
+                        float tongue_cy = (upper_y + lower_y) * 0.5f + openness_offset * 0.3f;
+                        float tongue_rx = half_width * 0.35f;
+                        float tongue_ry = openness_offset * 0.3f;
+                        float fx_t = x - tongue_cx;
+                        float fy_t = y - tongue_cy;
+                        float tongue_dist = (fx_t * fx_t) / (tongue_rx * tongue_rx)
+                                          + (fy_t * fy_t) / (tongue_ry * tongue_ry);
+                        if (tongue_dist < 1.0f) {
+                            buf[x] = blend_colors(buf[x], sp->pal[PAL_TONGUE], 0.85f);
+                        } else {
+                            buf[x] = blend_colors(buf[x], sp->pal[PAL_PUPIL], 0.7f);
+                        }
                     } else {
                         buf[x] = blend_colors(buf[x], sp->pal[PAL_PUPIL], 0.7f);
                     }
                 } else {
-                    buf[x] = blend_colors(buf[x], sp->pal[PAL_PUPIL], 0.7f);
+                    /* original tongue / dark fill */
+                    if (mp->openness > 0.2f) {
+                        float tongue_cx = CENTER_X;
+                        float tongue_cy = (upper_y + lower_y) * 0.5f + openness_offset * 0.3f;
+                        float tongue_rx = half_width * 0.35f;
+                        float tongue_ry = openness_offset * 0.3f;
+                        float fx_t = x - tongue_cx;
+                        float fy_t = y - tongue_cy;
+                        float tongue_dist = (fx_t * fx_t) / (tongue_rx * tongue_rx)
+                                          + (fy_t * fy_t) / (tongue_ry * tongue_ry);
+                        if (tongue_dist < 1.0f) {
+                            buf[x] = blend_colors(buf[x], sp->pal[PAL_TONGUE], 0.85f);
+                        } else {
+                            buf[x] = blend_colors(buf[x], sp->pal[PAL_PUPIL], 0.7f);
+                        }
+                    } else {
+                        buf[x] = blend_colors(buf[x], sp->pal[PAL_PUPIL], 0.7f);
+                    }
                 }
             } else {
                 float alpha = 0.7f;
