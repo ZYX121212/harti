@@ -43,10 +43,15 @@ static void draw_face(int y, const face_state_t *st, const sprite_set_t *sp, uin
         active_pal = sp->pal;
     }
     int dy = y - CENTER_Y;
-    int dy_sq = dy * dy;
+    float sx = 1.0f + st->face.squash_x * 0.3f;
+    float sy = 1.0f + st->face.stretch_y * 0.3f;
+    if (sx < 0.5f) sx = 0.5f;
+    if (sy < 0.5f) sy = 0.5f;
     for (int x = 0; x < SCREEN_W; x++) {
         int dx = x - CENTER_X;
-        int d_sq = dx * dx + dy_sq;
+        float dx_s = (float)dx / sx;
+        float dy_s = (float)dy / sy;
+        int d_sq = (int)(dx_s * dx_s + dy_s * dy_s);
         int d = (int)sqrtf((float)d_sq);
         if (d >= BG_GRADIENT_MAX) d = BG_GRADIENT_MAX - 1;
         buf[x] = bg_lut[d];
@@ -97,7 +102,10 @@ static void draw_eye_impl(int y, const eye_params_t *ep, int eye_cx, int eye_cy,
             float ring = iris_d / iris_r;
             uint16_t led_color = blend_colors(pal[PAL_IRIS], pal[PAL_SHINE], glow * 0.5f);
             uint16_t dark_led = blend_colors(pal[PAL_IRIS], pal[PAL_PUPIL], 0.6f);
-            buf[x] = blend_colors(buf[x], blend_colors(led_color, dark_led, ring * ring), 0.85f);
+            /* iris_detail: stronger LED ring contrast near edge */
+            float ring_contrast = 0.6f + ep->iris_detail * 0.4f;
+            uint16_t final_led = blend_colors(led_color, dark_led, ring * ring * ring_contrast);
+            buf[x] = blend_colors(buf[x], final_led, 0.85f);
         } else {
             // Panel surface
             buf[x] = blend_colors(buf[x], pal[PAL_SCLERA], 0.7f);
@@ -177,7 +185,13 @@ static void draw_mouth(int y, const face_state_t *st, const sprite_set_t *sp, ui
         float t = (float)(x - x_start) / (x_end - x_start);
         if (t < 0.0f || t > 1.0f) continue;
         float inset = (1.0f - fabsf(t - 0.5f) * 2.0f) * half_width * 0.15f;
-        float current_top = top_y + inset;
+        /* cupid_depth: additional center dip on top edge */
+        float center_dip = 0.0f;
+        if (mp->cupid_depth > 0.01f) {
+            float center_t = 1.0f - fabsf(t - 0.5f) * 2.0f;
+            center_dip = center_t * center_t * mp->cupid_depth * 3.0f;
+        }
+        float current_top = top_y + inset + center_dip;
         float current_bot = bot_y - inset;
 
         if (y >= current_top - 1.0f && y <= current_bot + 1.0f) {
