@@ -6,7 +6,6 @@
 
 static uint16_t line_buf[SCREEN_W];
 static const sprite_set_t *current_sprite = NULL;
-face_post_line_cb_t face_post_line_cb = NULL;
 
 void renderer_init(void) {
     current_sprite = NULL;
@@ -36,10 +35,8 @@ void renderer_render_frame(const face_state_t *st) {
         sp->draw_brow_left(y, st, sp, line_buf);
         sp->draw_brow_right(y, st, sp, line_buf);
         sp->draw_decor_overlay(y, st, sp, line_buf);
-
-        if (face_post_line_cb) {
-            face_post_line_cb(y, line_buf, SCREEN_W);
-        }
+        if (sp->draw_props)
+            sp->draw_props(y, st, sp, line_buf);
 
         gc9a01_send_pixels(line_buf, SCREEN_W);
     }

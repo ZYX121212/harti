@@ -4,11 +4,11 @@
 #include "face_model.h"
 #include "face_animator.h"
 #include "face_renderer.h"
-#include "sprite_classic.h"
-#include "sprite_cat.h"
-#include "sprite_pixel.h"
-#include "sprite_robot.h"
-#include "sprite_lineart.h"
+#include "face_micro.h"
+#include "face_prop.h"
+#include "sprites/sprite_registry.h"
+
+#include <string.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -17,7 +17,9 @@ extern "C" {
 static inline void face_init(void) {
     animator_init();
     renderer_init();
-    renderer_set_sprite(&SPRITE_LINEART);
+    micro_animator_init();
+    prop_animator_init();
+    renderer_set_sprite(sprite_registry_default());
 }
 
 static inline void face_set_expression(expression_id_t id) {
@@ -41,8 +43,15 @@ static inline void face_set_sprite(const sprite_set_t *sprite) {
     renderer_set_sprite(sprite);
 }
 
+static inline void face_set_tilt(float pitch, float roll) {
+    micro_animator_set_tilt(pitch, roll);
+}
+
 static inline void face_render_frame(void) {
-    renderer_render_frame(animator_get_state());
+    face_state_t display_state = *animator_get_state();
+    micro_animator_apply(&display_state);
+    prop_animator_apply(&display_state);
+    renderer_render_frame(&display_state);
 }
 
 static inline void face_animator_tick(void) {
