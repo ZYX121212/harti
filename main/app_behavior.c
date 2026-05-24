@@ -29,6 +29,9 @@ static void transition_to(behavior_state_t state, emotion_t emo) {
     current_state = state;
     state_start_ticks = xTaskGetTickCount();
     face_set_expression((expression_id_t)emo);
+    if (emo == EMOTION_NEUTRAL) {
+        face_prop_clear(300);
+    }
 }
 
 // ── Idle check (called every second) ───────────────────────
@@ -72,6 +75,7 @@ static void on_event(const sensor_event_msg_t *msg) {
     switch (msg->type) {
 
     case EVT_SHAKE: {
+        face_prop_show(PROP_STAR_SMALL, 11.0f, 0.55f, 180);
         if (was_idle) { transition_to(STATE_IDLE, EMOTION_NEUTRAL); break; }
         if (msg->value >= 1.5f) {
             transition_to(STATE_SURPRISED, EMOTION_SURPRISED);
@@ -112,11 +116,13 @@ static void on_event(const sensor_event_msg_t *msg) {
         break;
 
     case EVT_WARM_UP:
+        face_prop_show(PROP_TEACUP, 9.8f, 0.6f, 250);
         if (was_idle) { transition_to(STATE_WARM, EMOTION_WARM); break; }
         transition_to(STATE_WARM, EMOTION_WARM);
         break;
 
     case EVT_COLD_DOWN:
+        face_prop_hide(PROP_TEACUP, 200);
         transition_to(STATE_COLD, EMOTION_COLD);
         break;
 
@@ -126,6 +132,7 @@ static void on_event(const sensor_event_msg_t *msg) {
 
     case EVT_BLE_FRIEND:
         ESP_LOGI(TAG, "BLE FRIEND level=%.0f", msg->value);
+        face_prop_show(PROP_HEART, 11.5f, 0.5f, 200);
         break;
 
     default: break;
