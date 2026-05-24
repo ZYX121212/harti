@@ -2,6 +2,7 @@
 #include "app_sensors.h"
 #include "harti_config.h"
 #include "face_api.h"
+#include "face_temperament.h"
 #include "esp_log.h"
 #include "freertos/task.h"
 
@@ -12,6 +13,7 @@ typedef enum {
     STATE_HAPPY,
     STATE_CONTENT,
     STATE_SURPRISED,
+    STATE_THINKING,
     STATE_CONFUSED,
     STATE_SAD,
     STATE_WARM,
@@ -23,14 +25,31 @@ typedef enum {
 static behavior_state_t current_state = STATE_IDLE;
 static TickType_t last_event_ticks;
 static TickType_t state_start_ticks;
+static expression_id_t prev_expression = 0; /* EMOTION_NEUTRAL */
 
 // Helper: set emotion and update state
 static void transition_to(behavior_state_t state, emotion_t emo) {
     current_state = state;
     state_start_ticks = xTaskGetTickCount();
     face_set_expression((expression_id_t)emo);
+    face_temperament_notify_expression_change(prev_expression, (expression_id_t)emo);
+    prev_expression = (expression_id_t)emo;
     if (emo == EMOTION_NEUTRAL) {
         face_prop_clear(300);
+    }
+
+    /* Expression-linked props — show on enter, hide on leave */
+    switch (prev_expression) {
+    case EMOTION_HAPPY:   face_prop_hide(PROP_MUSIC_NOTE, 100);   break;
+    case EMOTION_CONTENT: face_prop_hide(PROP_TEACUP_STEAM, 100); break;
+    case EMOTION_COLD:    face_prop_hide(PROP_SUNGLASSES, 100);   break;
+    default: break;
+    }
+    switch (emo) {
+    case EMOTION_HAPPY:   face_prop_show(PROP_MUSIC_NOTE, 0.7f, 0.5f, 0);    break;
+    case EMOTION_CONTENT: face_prop_show(PROP_TEACUP_STEAM, 0.4f, 0.6f, 0);  break;
+    case EMOTION_COLD:    face_prop_show(PROP_SUNGLASSES, 0.0f, 0.0f, 0);    break;
+    default: break;
     }
 }
 
@@ -41,10 +60,24 @@ static void check_idle(void) {
     int elapsed_s = (now - last_event_ticks) * portTICK_PERIOD_MS / 1000;
     int state_elapsed_s = (now - state_start_ticks) * portTICK_PERIOD_MS / 1000;
 
-    // SURPRISED → CONFUSED
+    // SURPRISED → THINKING
     if (current_state == STATE_SURPRISED && state_elapsed_s >= SURPRISE_TIMEOUT_SEC) {
-        transition_to(STATE_CONFUSED, EMOTION_CONFUSED);
-        ESP_LOGI(TAG, "SURPRISED → CONFUSED (%ds)", state_elapsed_s);
+        transition_to(STATE_THINKING, EMOTION_THINKING);
+        ESP_LOGI(TAG, "SURPRISED → THINKING (%ds)", state_elapsed_s);
+        return;
+    }
+
+    // HAPPY → CONTENT
+    if (current_state == STATE_HAPPY && state_elapsed_s >= HAPPY_TIMEOUT_SEC) {
+        transition_to(STATE_CONTENT, EMOTION_CONTENT);
+        ESP_LOGI(TAG, "HAPPY → CONTENT (%ds)", state_elapsed_s);
+        return;
+    }
+
+    // CONTENT → IDLE
+    if (current_state == STATE_CONTENT && state_elapsed_s >= CONTENT_TIMEOUT_SEC) {
+        transition_to(STATE_IDLE, EMOTION_NEUTRAL);
+        ESP_LOGI(TAG, "CONTENT → IDLE (%ds)", state_elapsed_s);
         return;
     }
 
@@ -52,6 +85,13 @@ static void check_idle(void) {
     if (current_state == STATE_CONFUSED && state_elapsed_s >= CONFUSED_TIMEOUT_SEC) {
         transition_to(STATE_IDLE, EMOTION_NEUTRAL);
         ESP_LOGI(TAG, "CONFUSED → IDLE (%ds)", state_elapsed_s);
+        return;
+    }
+
+    // THINKING → IDLE
+    if (current_state == STATE_THINKING && state_elapsed_s >= THINKING_TIMEOUT_SEC) {
+        transition_to(STATE_IDLE, EMOTION_NEUTRAL);
+        ESP_LOGI(TAG, "THINKING → IDLE (%ds)", state_elapsed_s);
         return;
     }
 
@@ -146,6 +186,11 @@ static void behavior_task(void *arg) {
     ESP_LOGI(TAG, "Behavior task started");
     last_event_ticks = xTaskGetTickCount();
     state_start_ticks = last_event_ticks;
+
+    /* Wait for initial NEUTRAL animation to finish (100ms delay + 150ms dur = 250ms),
+       then show finger heart prop on the right cheek. */
+    vTaskDelay(pdMS_TO_TICKS(350));
+    face_prop_show(PROP_FINGER_HEART, 0.65f, 0.55f, 30000);
 
     sensor_event_msg_t msg;
     while (1) {

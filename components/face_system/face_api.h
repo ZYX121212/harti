@@ -6,6 +6,8 @@
 #include "face_renderer.h"
 #include "face_micro.h"
 #include "face_prop.h"
+#include "face_vivid.h"
+#include "face_temperament.h"
 #include "sprites/sprite_registry.h"
 
 #include <string.h>
@@ -19,6 +21,8 @@ static inline void face_init(void) {
     renderer_init();
     micro_animator_init();
     prop_animator_init();
+    face_vivid_init();
+    face_temperament_init();
     renderer_set_sprite(sprite_registry_default());
 }
 
@@ -55,11 +59,17 @@ static inline void face_render_frame(void) {
     face_state_t display_state = *animator_get_state();
     micro_animator_apply(&display_state);
     prop_animator_apply(&display_state);
+    face_vivid_apply(&display_state);
+    face_temperament_apply(&display_state);
     renderer_render_frame(&display_state);
 }
 
 static inline void face_animator_tick(void) {
     animator_tick();
+}
+
+static inline void face_set_temperament(const temperament_profile_t *p) {
+    face_temperament_set_profile(p);
 }
 
 #ifdef __cplusplus
