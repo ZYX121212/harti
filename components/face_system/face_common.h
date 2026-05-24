@@ -462,6 +462,102 @@ static inline void fill_rounded_rect_scan(int y,
     for (int x = xl; x <= xr; x++) buf[x] = color;
 }
 
+/** 通用凹多边形 even-odd 填充（scanline）。
+ *  verts = [x0,y0, x1,y1, ...], n_verts ≤ 12（stack 分配）。
+ *  对每行求所有边交点 → 排序 → 交替填充。支持自相交多边形。 */
+static inline void fill_polygon_evenodd_scan(int y,
+    const float *verts, int n_verts,
+    uint16_t color, uint16_t *buf, int screen_w) {
+    if (n_verts < 3 || n_verts > 12) return;
+
+    float fy = (float)y;
+    float xs[12];
+    int nx = 0;
+
+    for (int i = 0; i < n_verts; i++) {
+        int j = (i + 1) % n_verts;
+        float ey0 = verts[i * 2 + 1];
+        float ey1 = verts[j * 2 + 1];
+        if ((fy < ey0 && fy < ey1) || (fy > ey0 && fy > ey1)) continue;
+        if (ey1 == ey0) continue;
+        float t = (fy - ey0) / (ey1 - ey0);
+        xs[nx++] = verts[i * 2] + t * (verts[j * 2] - verts[i * 2]);
+    }
+
+    if (nx < 2) return;
+
+    /* Insertion sort intersections (small array, typically 2-6) */
+    for (int i = 1; i < nx; i++) {
+        float key = xs[i];
+        int k = i - 1;
+        while (k >= 0 && xs[k] > key) { xs[k + 1] = xs[k]; k--; }
+        xs[k + 1] = key;
+    }
+
+    /* Fill alternate spans (even-odd rule) */
+    for (int i = 0; i < nx - 1; i += 2) {
+        int xl = (int)xs[i];     if (xl < 0) xl = 0;
+        int xr = (int)xs[i + 1]; if (xr >= screen_w) xr = screen_w - 1;
+        for (int x = xl; x <= xr; x++) buf[x] = color;
+    }
+}
+
+/** 填充心形（scanline）。组合 2 圆 + 1 三角形。 */
+static inline void fill_heart_scan(int y,
+    int cx, int cy, float size,
+    uint16_t color, uint16_t *buf, int screen_w) {
+    float r = size * 0.5f;
+    float lobe_off = r * 0.55f;
+    /* Left lobe */
+    fill_circle_scan(y, (int)(cx - lobe_off), (int)(cy - r * 0.3f), r, color, buf, screen_w);
+    /* Right lobe */
+    fill_circle_scan(y, (int)(cx + lobe_off), (int)(cy - r * 0.3f), r, color, buf, screen_w);
+    /* Bottom triangle */
+    fill_triangle_scan(y,
+        cx - r * 1.05f, cy + r * 0.15f,
+        cx + r * 1.05f, cy + r * 0.15f,
+        (float)cx,        cy - r * 1.1f,
+        color, buf, screen_w);
+}
+
+/** 填充星形（scanline）。n_points 角星，outer_r/inner_r 交替半径。
+ *  生成 2*n_points 个顶点追踪星形轮廓，然后用 even-odd 填充。 */
+static inline void fill_star_scan(int y,
+    int cx, int cy, float outer_r, float inner_r, int n_points, float rotation_deg,
+    uint16_t color, uint16_t *buf, int screen_w) {
+    if (n_points < 3) n_points = 3;
+    if (n_points > 6) n_points = 6;
+    int nv = n_points * 2;
+
+    float verts[12]; /* max 6*2*2 = 24 floats → clamp n_points≤6 → 12 floats */
+    float angle_step = 3.14159265f / (float)n_points;
+    float base = rotation_deg * 3.14159265f / 180.0f - 3.14159265f * 0.5f;
+
+    for (int i = 0; i < nv; i++) {
+        float a = base + angle_step * (float)i;
+        float r = (i & 1) ? inner_r : outer_r;
+        verts[i * 2]     = (float)cx + cosf(a) * r;
+        verts[i * 2 + 1] = (float)cy + sinf(a) * r;
+    }
+
+    fill_polygon_evenodd_scan(y, verts, nv, color, buf, screen_w);
+}
+
+/** 填充泪滴/水滴形（scanline）。上半圆 + 下半三角收敛到尖点。 */
+static inline void fill_teardrop_scan(int y,
+    int cx, int cy, float size,
+    uint16_t color, uint16_t *buf, int screen_w) {
+    float r = size * 0.45f;
+    /* Upper circle */
+    fill_circle_scan(y, cx, (int)(cy - r * 0.25f), r, color, buf, screen_w);
+    /* Lower triangle → point */
+    fill_triangle_scan(y,
+        (float)cx - r,      cy,
+        (float)cx + r,      cy,
+        (float)cx,          cy + size * 1.05f,
+        color, buf, screen_w);
+}
+
 /* ════════════════════════════════════════════════════════════════
  *  Hand-drawn jitter + dithering helpers
  * ══════════════════════════════════════════════════════════════ */
@@ -488,6 +584,154 @@ static inline bool bayer_accept(int x, int y, float level) {
     };
     int threshold = (int)((1.0f - level) * 16.0f);
     return bayer[y & 3][x & 3] >= threshold;
+}
+
+/* ════════════════════════════════════════════════════════════════
+ *  Prop drawing helpers
+ * ══════════════════════════════════════════════════════════════ */
+
+/** Heart: two lobe circles + triangle bottom (scanline-safe). */
+static inline void draw_heart_scan(int y, float cx, float cy, float size,
+                                    uint16_t color, uint16_t *buf, int screen_w) {
+    float r = size * 0.42f;
+    float lobe_y = cy - size * 0.18f;
+    float l_cx = cx - r * 0.6f;
+    float r_cx = cx + r * 0.6f;
+    float ldy = (float)(y - lobe_y);
+
+    float l_span = 0.0f, r_span = 0.0f;
+    if (fabsf(ldy) < r) {
+        float hw = sqrtf(r * r - ldy * ldy);
+        l_span = hw; r_span = hw;
+    }
+
+    float tri_t = ((float)(y - (cy - size * 0.05f))) / (size * 0.55f);
+    float tri_w = 0.0f;
+    if (tri_t > 0.0f && tri_t < 1.0f) tri_w = size * 0.50f * (1.0f - tri_t);
+
+    int x0 = (int)(cx - size); if (x0 < 0) x0 = 0;
+    int x1 = (int)(cx + size); if (x1 >= screen_w) x1 = screen_w - 1;
+    for (int x = x0; x <= x1; x++) {
+        float dx = (float)(x - cx);
+        bool in_l = fabsf(dx - (l_cx - cx)) <= l_span && fabsf(ldy) <= r;
+        bool in_r = fabsf(dx - (r_cx - cx)) <= r_span && fabsf(ldy) <= r;
+        bool in_t = fabsf(dx) <= tri_w && tri_t > 0.0f && tri_t < 1.0f;
+        if ((y < lobe_y && (in_l || in_r)) ||
+            (y >= lobe_y - r * 0.5f && (in_l || in_r || in_t)))
+            buf[x] = color;
+    }
+}
+
+/** Teacup: ellipse body + handle arc + steam wisps. */
+static inline void draw_teacup_scan(int y, float cx, float cy, float size,
+                                     uint16_t color, uint16_t *buf, int screen_w) {
+    float rx = size * 0.48f, ry = size * 0.28f;
+    float cup_cy = cy + size * 0.12f;
+
+    /* Cup body */
+    float nydy = (float)(y - cup_cy) / ry;
+    if (fabsf(nydy) < 1.0f) {
+        float span = rx * sqrtf(1.0f - nydy * nydy);
+        int xl = (int)(cx - span); if (xl < 0) xl = 0;
+        int xr = (int)(cx + span); if (xr >= screen_w) xr = screen_w - 1;
+        for (int x = xl; x <= xr; x++) buf[x] = color;
+    }
+
+    /* Handle arc on right */
+    float h_t = ((float)(y - (cup_cy - ry * 0.8f))) / (ry * 2.0f);
+    if (h_t > 0.0f && h_t < 1.0f) {
+        float hx = cx + rx + sinf(h_t * 3.14159265f) * size * 0.1f;
+        int px = (int)hx;
+        if (px >= 0 && px < screen_w) buf[px] = color;
+        if (px + 1 < screen_w) buf[px + 1] = color;
+    }
+
+    /* 3 steam dots */
+    float steam_base = cup_cy - ry - 2;
+    for (int s = 0; s < 3; s++) {
+        float sy = steam_base - size * 0.14f * (float)(s + 1);
+        if (fabsf((float)(y - sy)) < 2.0f) {
+            float sx = cx - size * 0.15f + s * size * 0.15f;
+            for (int dx = -1; dx <= 1; dx++) {
+                int px = (int)(sx) + dx;
+                if (px >= 0 && px < screen_w) buf[px] = color;
+            }
+        }
+    }
+}
+
+/** Hand: palm circle + 3 finger nubs. */
+static inline void draw_hand_scan(int y, float cx, float cy, float size,
+                                   uint16_t color, uint16_t *buf, int screen_w) {
+    /* Palm: filled circle */
+    fill_circle_scan(y, (int)cx, (int)(cy + size * 0.1f), size * 0.32f,
+                     color, buf, screen_w);
+
+    /* 3 short fingers above palm */
+    for (int f = 0; f < 3; f++) {
+        float fx = cx - size * 0.18f + f * size * 0.18f;
+        float fy = cy - size * 0.28f;
+        fill_circle_scan(y, (int)fx, (int)fy, size * 0.1f, color, buf, screen_w);
+        /* Vertical bar from finger base to palm */
+        if ((float)y >= fy && (float)y < cy && fabsf((float)(y - fy)) < size * 0.35f) {
+            for (int dx = -1; dx <= 1; dx++) {
+                int px = (int)fx + dx;
+                if (px >= 0 && px < screen_w) buf[px] = color;
+            }
+        }
+    }
+}
+
+/** Star: 5-pointed using angular check. */
+static inline void draw_star_scan(int y, float cx, float cy, float size,
+                                   uint16_t color, uint16_t *buf, int screen_w) {
+    float dy = (float)(y - cy);
+    float outer_r = size * 0.5f;
+    float inner_r = size * 0.2f;
+
+    int x0 = (int)(cx - outer_r); if (x0 < 0) x0 = 0;
+    int x1 = (int)(cx + outer_r); if (x1 >= screen_w) x1 = screen_w - 1;
+
+    for (int x = x0; x <= x1; x++) {
+        float dx = (float)(x - cx);
+        float d2 = dx * dx + dy * dy;
+        if (d2 > outer_r * outer_r) continue;
+
+        float ang = atan2f(dy, dx);
+        float sector = _fmodf(ang * 5.0f / (2.0f * 3.14159265f) + 10.0f, 1.0f);
+        /* 5-point star: radius oscillates outer→inner→outer per sector */
+        float r_limit = (sector < 0.5f)
+            ? (outer_r * (1.0f - sector * 2.0f) + inner_r * sector * 2.0f)
+            : (inner_r + (outer_r - inner_r) * (sector - 0.5f) * 2.0f);
+
+        if (d2 <= r_limit * r_limit) buf[x] = color;
+    }
+}
+
+/** Sweat drop: circle top + pointed bottom. */
+static inline void draw_sweat_scan(int y, float cx, float cy, float size,
+                                    uint16_t color, uint16_t *buf, int screen_w) {
+    float dy = (float)(y - cy);
+    float r = size * 0.28f;
+    float tip_y = cy + size * 0.45f;
+    float circle_cy = cy - size * 0.08f;
+
+    /* Upper circle part */
+    float cdy = (float)(y - circle_cy);
+    float c_span = 0.0f;
+    if (fabsf(cdy) < r) c_span = sqrtf(r * r - cdy * cdy);
+
+    /* Lower triangle: from circle bottom to tip */
+    float tri_t = ((float)(y - (circle_cy + r))) / (tip_y - (circle_cy + r));
+    float tri_w = 0.0f;
+    if (tri_t > 0.0f && tri_t < 1.0f) tri_w = r * (1.0f - tri_t);
+
+    float hw = c_span > tri_w ? c_span : tri_w;
+    if (hw <= 0.0f) return;
+
+    int xl = (int)(cx - hw); if (xl < 0) xl = 0;
+    int xr = (int)(cx + hw); if (xr >= screen_w) xr = screen_w - 1;
+    for (int x = xl; x <= xr; x++) buf[x] = color;
 }
 
 #ifdef __cplusplus
