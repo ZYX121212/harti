@@ -88,3 +88,13 @@ float temp_read_celsius(void)
 
     return temp_k - 273.15f;
 }
+
+int temp_read_raw(void)
+{
+    int raw;
+    esp_err_t err = adc_oneshot_read(adc_handle, ADC_CHANNEL, &raw);
+    if (err != ESP_OK) {
+        return 4095; /* 读取失败返回最大值，避免误判按键按下 */
+    }
+    return raw;
+}
