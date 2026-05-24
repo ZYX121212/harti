@@ -1,5 +1,6 @@
 #include "sprite_classic.h"
 #include "face_palette.h"
+#include "face_common.h"
 #include <math.h>
 #include <string.h>
 
@@ -7,12 +8,6 @@
 #define SCREEN_H 240
 #define CENTER_X 120
 #define CENTER_Y 120
-
-/* ── Utility: dist squared ───────────────────────────────── */
-static inline float dist_sq(float x1, float y1, float x2, float y2) {
-    float dx = x1 - x2, dy = y1 - y2;
-    return dx * dx + dy * dy;
-}
 
 /* ── Utility: fast integer sqrt (for bg gradient LUT) ────── */
 static inline int fast_isqrt(int n) {
@@ -23,19 +18,6 @@ static inline int fast_isqrt(int n) {
         bit >>= 2;
     }
     return r;
-}
-
-/* ── Utility: blend two RGB565 colors ────────────────────── */
-static inline uint16_t blend_colors(uint16_t c1, uint16_t c2, float t) {
-    if (t <= 0) return c1;
-    if (t >= 1) return c2;
-    int t256 = (int)(t * 256.0f);
-    int r1 = (c1 >> 11) & 0x1F, g1 = (c1 >> 5) & 0x3F, b1 = c1 & 0x1F;
-    int r2 = (c2 >> 11) & 0x1F, g2 = (c2 >> 5) & 0x3F, b2 = c2 & 0x1F;
-    int r = r1 + (((r2 - r1) * t256 + 128) >> 8);
-    int g = g1 + (((g2 - g1) * t256 + 128) >> 8);
-    int b = b1 + (((b2 - b1) * t256 + 128) >> 8);
-    return (r << 11) | (g << 5) | b;
 }
 
 /* ── Background gradient LUT ──────────────────────────────── */
@@ -203,14 +185,14 @@ static void draw_eye_impl(int y, const eye_params_t *ep, float eye_r,
 }
 
 static void draw_eye_left(int y, const face_state_t *st, const sprite_set_t *sp, uint16_t *buf) {
-    int eye_cx = CENTER_X - (int)sp->eye_half_spacing;
-    int eye_cy = CENTER_Y;
+    int eye_cx = CENTER_X - (int)sp->eye_half_spacing + (int)(st->eye[0].position.dx * 15.0f);
+    int eye_cy = CENTER_Y + (int)(st->eye[0].position.dy * 15.0f);
     draw_eye_impl(y, &st->eye[0], sp->eye_radius, eye_cx, eye_cy, sp->pal, buf);
 }
 
 static void draw_eye_right(int y, const face_state_t *st, const sprite_set_t *sp, uint16_t *buf) {
-    int eye_cx = CENTER_X + (int)sp->eye_half_spacing;
-    int eye_cy = CENTER_Y;
+    int eye_cx = CENTER_X + (int)sp->eye_half_spacing + (int)(st->eye[1].position.dx * 15.0f);
+    int eye_cy = CENTER_Y + (int)(st->eye[1].position.dy * 15.0f);
     draw_eye_impl(y, &st->eye[1], sp->eye_radius, eye_cx, eye_cy, sp->pal, buf);
 }
 
@@ -252,13 +234,15 @@ static void draw_brow_impl(int y, const brow_params_t *bp, int eye_cx, int eye_c
 }
 
 static void draw_brow_left(int y, const face_state_t *st, const sprite_set_t *sp, uint16_t *buf) {
-    int eye_cx = CENTER_X - (int)sp->eye_half_spacing;
-    draw_brow_impl(y, &st->brow[0], eye_cx, CENTER_Y, sp, sp->pal, buf);
+    int eye_cx = CENTER_X - (int)sp->eye_half_spacing + (int)(st->eye[0].position.dx * 15.0f);
+    int eye_cy = CENTER_Y + (int)(st->eye[0].position.dy * 15.0f);
+    draw_brow_impl(y, &st->brow[0], eye_cx, eye_cy, sp, sp->pal, buf);
 }
 
 static void draw_brow_right(int y, const face_state_t *st, const sprite_set_t *sp, uint16_t *buf) {
-    int eye_cx = CENTER_X + (int)sp->eye_half_spacing;
-    draw_brow_impl(y, &st->brow[1], eye_cx, CENTER_Y, sp, sp->pal, buf);
+    int eye_cx = CENTER_X + (int)sp->eye_half_spacing + (int)(st->eye[1].position.dx * 15.0f);
+    int eye_cy = CENTER_Y + (int)(st->eye[1].position.dy * 15.0f);
+    draw_brow_impl(y, &st->brow[1], eye_cx, eye_cy, sp, sp->pal, buf);
 }
 
 /* ── draw_mouth: simple mouth shape ──────────────────────── */

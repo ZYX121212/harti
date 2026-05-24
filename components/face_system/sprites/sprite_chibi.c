@@ -342,13 +342,15 @@ static void draw_eye_chibi(int y, const eye_params_t *ep, float eye_r,
 /* ── eye wrappers ── */
 
 static void draw_eye_left(int y, const face_state_t *st, const sprite_set_t *sp, uint16_t *buf) {
-    int eye_cx = CENTER_X - (int)sp->eye_half_spacing;
-    draw_eye_chibi(y, &st->eye[0], sp->eye_radius, eye_cx, CENTER_Y, sp->pal, buf);
+    int eye_cx = CENTER_X - (int)sp->eye_half_spacing + (int)(st->eye[0].position.dx * 15.0f);
+    int eye_cy = CENTER_Y + (int)(st->eye[0].position.dy * 15.0f);
+    draw_eye_chibi(y, &st->eye[0], sp->eye_radius, eye_cx, eye_cy, sp->pal, buf);
 }
 
 static void draw_eye_right(int y, const face_state_t *st, const sprite_set_t *sp, uint16_t *buf) {
-    int eye_cx = CENTER_X + (int)sp->eye_half_spacing;
-    draw_eye_chibi(y, &st->eye[1], sp->eye_radius, eye_cx, CENTER_Y, sp->pal, buf);
+    int eye_cx = CENTER_X + (int)sp->eye_half_spacing + (int)(st->eye[1].position.dx * 15.0f);
+    int eye_cy = CENTER_Y + (int)(st->eye[1].position.dy * 15.0f);
+    draw_eye_chibi(y, &st->eye[1], sp->eye_radius, eye_cx, eye_cy, sp->pal, buf);
 }
 
 /* ── draw_brow_chibi: CR spline with jitter + taper ── */
@@ -409,13 +411,15 @@ static void draw_brow_chibi(int y, const brow_params_t *bp, int eye_cx, int eye_
 }
 
 static void draw_brow_left(int y, const face_state_t *st, const sprite_set_t *sp, uint16_t *buf) {
-    int eye_cx = CENTER_X - (int)sp->eye_half_spacing;
-    draw_brow_chibi(y, &st->brow[0], eye_cx, CENTER_Y, sp, sp->pal, buf);
+    int eye_cx = CENTER_X - (int)sp->eye_half_spacing + (int)(st->eye[0].position.dx * 15.0f);
+    int eye_cy = CENTER_Y + (int)(st->eye[0].position.dy * 15.0f);
+    draw_brow_chibi(y, &st->brow[0], eye_cx, eye_cy, sp, sp->pal, buf);
 }
 
 static void draw_brow_right(int y, const face_state_t *st, const sprite_set_t *sp, uint16_t *buf) {
-    int eye_cx = CENTER_X + (int)sp->eye_half_spacing;
-    draw_brow_chibi(y, &st->brow[1], eye_cx, CENTER_Y, sp, sp->pal, buf);
+    int eye_cx = CENTER_X + (int)sp->eye_half_spacing + (int)(st->eye[1].position.dx * 15.0f);
+    int eye_cy = CENTER_Y + (int)(st->eye[1].position.dy * 15.0f);
+    draw_brow_chibi(y, &st->brow[1], eye_cx, eye_cy, sp, sp->pal, buf);
 }
 
 /* ── Pass 8: draw_decor_overlay — sparkle dots + gold stars ── */

@@ -131,12 +131,14 @@ static void draw_eye_impl(int y, const eye_params_t *ep, int eye_cx, int eye_cy,
 }
 
 static void draw_eye_left(int y, const face_state_t *st, const sprite_set_t *sp, uint16_t *buf) {
-    int cx = CENTER_X - (int)sp->eye_half_spacing;
-    draw_eye_impl(y, &st->eye[0], cx, CENTER_Y, sp->pal, buf);
+    int cx = CENTER_X - (int)sp->eye_half_spacing + (int)(st->eye[0].position.dx * 15.0f);
+    int cy = CENTER_Y + (int)(st->eye[0].position.dy * 15.0f);
+    draw_eye_impl(y, &st->eye[0], cx, cy, sp->pal, buf);
 }
 static void draw_eye_right(int y, const face_state_t *st, const sprite_set_t *sp, uint16_t *buf) {
-    int cx = CENTER_X + (int)sp->eye_half_spacing;
-    draw_eye_impl(y, &st->eye[1], cx, CENTER_Y, sp->pal, buf);
+    int cx = CENTER_X + (int)sp->eye_half_spacing + (int)(st->eye[1].position.dx * 15.0f);
+    int cy = CENTER_Y + (int)(st->eye[1].position.dy * 15.0f);
+    draw_eye_impl(y, &st->eye[1], cx, cy, sp->pal, buf);
 }
 
 /* ── Cat brows: thin arcs (reuse bezier with cat palette) ─── */
@@ -174,12 +176,14 @@ static void draw_brow_impl(int y, const brow_params_t *bp, int eye_cx, int eye_c
 }
 
 static void draw_brow_left(int y, const face_state_t *st, const sprite_set_t *sp, uint16_t *buf) {
-    int cx = CENTER_X - (int)sp->eye_half_spacing;
-    draw_brow_impl(y, &st->brow[0], cx, CENTER_Y, sp->pal, sp->brow_y_offset, buf);
+    int cx = CENTER_X - (int)sp->eye_half_spacing + (int)(st->eye[0].position.dx * 15.0f);
+    int cy = CENTER_Y + (int)(st->eye[0].position.dy * 15.0f);
+    draw_brow_impl(y, &st->brow[0], cx, cy, sp->pal, sp->brow_y_offset, buf);
 }
 static void draw_brow_right(int y, const face_state_t *st, const sprite_set_t *sp, uint16_t *buf) {
-    int cx = CENTER_X + (int)sp->eye_half_spacing;
-    draw_brow_impl(y, &st->brow[1], cx, CENTER_Y, sp->pal, sp->brow_y_offset, buf);
+    int cx = CENTER_X + (int)sp->eye_half_spacing + (int)(st->eye[1].position.dx * 15.0f);
+    int cy = CENTER_Y + (int)(st->eye[1].position.dy * 15.0f);
+    draw_brow_impl(y, &st->brow[1], cx, cy, sp->pal, sp->brow_y_offset, buf);
 }
 
 /* ── Cat mouth: ω shape ───────────────────────────────────── */
