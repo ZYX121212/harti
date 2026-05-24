@@ -9,66 +9,62 @@
 #define CENTER_Y 120
 
 /* ════════════════════════════════════════════════════════════════
- *  Pig face geometry
+ *  Chibi pig face geometry
  * ══════════════════════════════════════════════════════════════ */
 
 #define HEAD_CX  120.0f
-#define HEAD_CY  120.0f
-#define HEAD_R    88.0f
+#define HEAD_CY  125.0f
+#define HEAD_R     90.0f
 
 /* Snout: oval below eyes */
 #define SNOUT_CX  120.0f
-#define SNOUT_CY  150.0f
-#define SNOUT_RX   32.0f
-#define SNOUT_RY   20.0f
+#define SNOUT_CY  155.0f
+#define SNOUT_RX   26.0f
+#define SNOUT_RY   17.0f
 #define NOSTRIL_R   4.0f
-#define NOSTRIL_DX 10.0f
+#define NOSTRIL_DX  8.0f
 #define NOSTRIL_DY  3.0f
 
-/* Eyes */
-#define EYE_CY          105.0f
-#define EYE_HALF_SPACE  26.0f
-#define EYE_R            13.0f
-
-/* Blush */
-#define BLUSH_CY  132.0f
+/* Eyes: chibi oval */
+#define EYE_CY          104.0f
+#define EYE_HALF_SPACE   26.0f
+#define EYE_RX            9.0f
+#define EYE_RY           13.0f
 
 /* Mouth */
 #define MOUTH_Y    178.0f
 #define MOUTH_HW    14.0f
 #define MOUTH_DIP    5.0f
 
-/* ════════════════════════════════════════════════════════════════
- *  Ear bezier data
- * ══════════════════════════════════════════════════════════════ */
+/* Blush */
+#define BLUSH_CY  120.0f
 
-/* Left ear: tip→outer_ctrl→outer_base (left edge), tip→inner_ctrl→inner_base (right edge) */
-#define L_TIP_X  40.0f
-#define L_TIP_Y  32.0f
-#define L_OUT_X  24.0f
-#define L_OUT_Y  68.0f
-#define L_IN_X   68.0f
-#define L_IN_Y   48.0f
-#define L_CTRL_OUT_X 18.0f
-#define L_CTRL_OUT_Y 48.0f
-#define L_CTRL_IN_X  54.0f
-#define L_CTRL_IN_Y  36.0f
+/* Left ear: floppy triangle bezier points */
+#define L_TIP_X   50.0f
+#define L_TIP_Y   54.0f
+#define L_OUT_X   36.0f
+#define L_OUT_Y   20.0f
+#define L_IN_X    76.0f
+#define L_IN_Y    38.0f
+#define L_CTRL_OUT_X 30.0f
+#define L_CTRL_OUT_Y 28.0f
+#define L_CTRL_IN_X  64.0f
+#define L_CTRL_IN_Y  22.0f
 
-/* Right ear (mirrored around CENTER_X=120) */
-#define R_TIP_X  200.0f
-#define R_TIP_Y   32.0f
-#define R_OUT_X  216.0f
-#define R_OUT_Y   68.0f
-#define R_IN_X   172.0f
-#define R_IN_Y    48.0f
-#define R_CTRL_OUT_X 222.0f
-#define R_CTRL_OUT_Y  48.0f
-#define R_CTRL_IN_X  186.0f
-#define R_CTRL_IN_Y   36.0f
+/* Right ear (mirrored around 120) */
+#define R_TIP_X  190.0f
+#define R_TIP_Y   54.0f
+#define R_OUT_X  204.0f
+#define R_OUT_Y   20.0f
+#define R_IN_X   164.0f
+#define R_IN_Y    38.0f
+#define R_CTRL_OUT_X 210.0f
+#define R_CTRL_OUT_Y  28.0f
+#define R_CTRL_IN_X  176.0f
+#define R_CTRL_IN_Y   22.0f
 
 /* ════════════════════════════════════════════════════════════════
  *  Helper: solve quadratic-bezier for x at a given y
- *  Returns -1 if no solution in t ∈ [0,1].
  * ══════════════════════════════════════════════════════════════ */
 
 static float bez_x_at_y(float x0, float y0, float x1, float y1,
@@ -98,25 +94,22 @@ static float bez_x_at_y(float x0, float y0, float x1, float y1,
 }
 
 /* ════════════════════════════════════════════════════════════════
- *  draw_face: pink background + filled head + ears + snout
+ *  draw_face: white head + floppy ears + outlined snout
  * ══════════════════════════════════════════════════════════════ */
 
 static void draw_face(int y, const face_state_t *st, const sprite_set_t *sp, uint16_t *buf) {
     (void)st;
     const uint16_t *pal = sp->pal;
 
-    /* 1. Fill entire row with background pink */
+    /* 1. Fill entire row black */
     for (int x = 0; x < SCREEN_W; x++) buf[x] = pal[PAL_BG];
 
-    /* 2. Filled head circle + outline ring */
+    /* 2. White filled head circle */
     fill_circle_scan(y, (int)HEAD_CX, (int)HEAD_CY, HEAD_R, pal[PAL_SKIN], buf, SCREEN_W);
-    draw_ring_scan(y, (int)HEAD_CX, (int)HEAD_CY,
-                   HEAD_R - 2.5f, HEAD_R + 0.5f,
-                   pal[PAL_BG_EDGE], buf, SCREEN_W);
 
-    /* 3. Ears — bezier-bounded filled shapes */
+    /* 3. Ears — bezier-bounded filled shapes, white fill + black edge */
     /* Left ear */
-    if (y >= (int)L_TIP_Y - 2 && y <= (int)L_OUT_Y + 2) {
+    if (y >= (int)L_OUT_Y - 2 && y <= (int)L_TIP_Y + 2) {
         float lx = bez_x_at_y(L_TIP_X, L_TIP_Y, L_CTRL_OUT_X, L_CTRL_OUT_Y,
                               L_OUT_X, L_OUT_Y, (float)y);
         float rx;
@@ -128,17 +121,13 @@ static void draw_face(int y, const face_state_t *st, const sprite_set_t *sp, uin
             rx = L_IN_X + t * (L_OUT_X - L_IN_X);
         }
         if (lx >= 0.0f && rx >= 0.0f && lx < rx) {
-            int xs = (int)lx;
-            int xe = (int)rx;
+            int xs = (int)lx, xe = (int)rx;
             if (xs < 0) xs = 0;
             if (xe >= SCREEN_W) xe = SCREEN_W - 1;
-            /* Ear fill */
             for (int x = xs; x <= xe; x++) buf[x] = pal[PAL_SKIN];
-            /* Outline at bezier edges */
-            int hl = 2;
-            for (int dx = -hl; dx <= hl; dx++) {
-                int olx = (int)lx + dx;
-                int orx = (int)rx + dx;
+            /* Black outline at bezier edges */
+            for (int dx = -2; dx <= 2; dx++) {
+                int olx = (int)lx + dx, orx = (int)rx + dx;
                 if (olx >= 0 && olx < SCREEN_W) buf[olx] = pal[PAL_BG_EDGE];
                 if (orx >= 0 && orx < SCREEN_W) buf[orx] = pal[PAL_BG_EDGE];
             }
@@ -146,35 +135,33 @@ static void draw_face(int y, const face_state_t *st, const sprite_set_t *sp, uin
     }
 
     /* Right ear (mirrored) */
-    if (y >= (int)R_TIP_Y - 2 && y <= (int)R_OUT_Y + 2) {
-        float lx = bez_x_at_y(R_TIP_X, R_TIP_Y, R_CTRL_IN_X, R_CTRL_IN_Y,
-                              R_IN_X, R_IN_Y, (float)y);
-        float rx = bez_x_at_y(R_TIP_X, R_TIP_Y, R_CTRL_OUT_X, R_CTRL_OUT_Y,
-                              R_OUT_X, R_OUT_Y, (float)y);
-        /* For right ear: inner edge is left-x, outer edge is right-x */
+    if (y >= (int)R_OUT_Y - 2 && y <= (int)R_TIP_Y + 2) {
+        float lx, rx;
         if (y <= (int)R_IN_Y) {
-            /* both bezier-defined */
+            rx = bez_x_at_y(R_TIP_X, R_TIP_Y, R_CTRL_OUT_X, R_CTRL_OUT_Y,
+                            R_OUT_X, R_OUT_Y, (float)y);
+            lx = bez_x_at_y(R_TIP_X, R_TIP_Y, R_CTRL_IN_X, R_CTRL_IN_Y,
+                            R_IN_X, R_IN_Y, (float)y);
         } else {
+            rx = bez_x_at_y(R_TIP_X, R_TIP_Y, R_CTRL_OUT_X, R_CTRL_OUT_Y,
+                            R_OUT_X, R_OUT_Y, (float)y);
             float t = (float)(y - R_IN_Y) / (R_OUT_Y - R_IN_Y);
             lx = R_IN_X + t * (R_OUT_X - R_IN_X);
         }
         if (lx >= 0.0f && rx >= 0.0f && lx < rx) {
-            int xs = (int)lx;
-            int xe = (int)rx;
+            int xs = (int)lx, xe = (int)rx;
             if (xs < 0) xs = 0;
             if (xe >= SCREEN_W) xe = SCREEN_W - 1;
             for (int x = xs; x <= xe; x++) buf[x] = pal[PAL_SKIN];
-            int hl = 2;
-            for (int dx = -hl; dx <= hl; dx++) {
-                int olx = (int)lx + dx;
-                int orx = (int)rx + dx;
+            for (int dx = -2; dx <= 2; dx++) {
+                int olx = (int)lx + dx, orx = (int)rx + dx;
                 if (olx >= 0 && olx < SCREEN_W) buf[olx] = pal[PAL_BG_EDGE];
                 if (orx >= 0 && orx < SCREEN_W) buf[orx] = pal[PAL_BG_EDGE];
             }
         }
     }
 
-    /* 4. Snout: filled ellipse with outline */
+    /* 4. Snout: white filled ellipse + black outline */
     float sny = (float)(y - (int)SNOUT_CY) / SNOUT_RY;
     if (fabsf(sny) <= 1.0f) {
         float sxspan = SNOUT_RX * sqrtf(1.0f - sny * sny);
@@ -182,78 +169,65 @@ static void draw_face(int y, const face_state_t *st, const sprite_set_t *sp, uin
         int sx1 = (int)(SNOUT_CX + sxspan);
         if (sx0 < 0) sx0 = 0;
         if (sx1 >= SCREEN_W) sx1 = SCREEN_W - 1;
-        /* Snout fill (pale pink) */
         for (int x = sx0; x <= sx1; x++) buf[x] = pal[PAL_TONGUE];
-        /* Snout outline ring (2px) */
-        float edge_inner = 0.92f;
-        if (fabsf(sny) > edge_inner) {
-            /* near top/bottom of ellipse */
-        }
-        /* Thin outline: check distance from ellipse edge */
+        /* Black outline ring at ellipse edge */
         for (int x = sx0; x <= sx1; x++) {
             float nx = (float)(x - SNOUT_CX) / SNOUT_RX;
             float e = nx * nx + sny * sny;
-            if (e > 0.88f && e < 1.05f) {
-                buf[x] = pal[PAL_BG_EDGE];
-            }
+            if (e > 0.85f && e < 1.05f) buf[x] = pal[PAL_BG_EDGE];
         }
     }
 
-    /* 5. Nostrils: two small filled circles on the snout */
+    /* 5. Nostrils: black filled circles */
     fill_circle_scan(y, (int)(SNOUT_CX - NOSTRIL_DX), (int)(SNOUT_CY + NOSTRIL_DY),
-                     NOSTRIL_R, pal[PAL_MOUTH], buf, SCREEN_W);
+                     NOSTRIL_R, pal[PAL_PUPIL], buf, SCREEN_W);
     fill_circle_scan(y, (int)(SNOUT_CX + NOSTRIL_DX), (int)(SNOUT_CY + NOSTRIL_DY),
-                     NOSTRIL_R, pal[PAL_MOUTH], buf, SCREEN_W);
+                     NOSTRIL_R, pal[PAL_PUPIL], buf, SCREEN_W);
 }
 
 /* ════════════════════════════════════════════════════════════════
- *  Eyes: white filled circle + black pupil + catchlight
+ *  Eyes: chibi oval with double shine
  * ══════════════════════════════════════════════════════════════ */
 
 static void draw_eye_pig(int y, const eye_params_t *ep, int eye_cx, int eye_cy,
                           const uint16_t *pal, uint16_t *buf) {
     float fy = (float)(y - eye_cy);
-    if (fabsf(fy) > EYE_R + 2.0f) return;
+    if (fabsf(fy) > EYE_RY + 2.0f) return;
 
-    float eye_r_sq = EYE_R * EYE_R;
-    float pad = 2.5f;
-    int x_start = eye_cx - (int)EYE_R - (int)pad;
-    int x_end   = eye_cx + (int)EYE_R + (int)pad;
-    if (x_start < 0) x_start = 0;
-    if (x_end >= SCREEN_W) x_end = SCREEN_W - 1;
-
-    float pdx = ep->iris_center.dx * 4.0f;
-    float pdy = ep->iris_center.dy * 4.0f;
-    float pupil_r = EYE_R * 0.45f;
+    float pdx = ep->iris_center.dx * 3.5f;
+    float pdy = ep->iris_center.dy * 3.5f;
+    float pupil_r = 6.5f;
     float pupil_r_sq = pupil_r * pupil_r;
     float shine = ep->shine_intensity;
 
-    float cl_r = 2.5f * sqrtf(shine);
-    float clx = pdx - pupil_r * 0.3f;
-    float cly = pdy - pupil_r * 0.3f;
-    float cl_r_sq = cl_r * cl_r;
+    int x_start = eye_cx - (int)EYE_RX - 3;
+    int x_end   = eye_cx + (int)EYE_RX + 3;
+    if (x_start < 0) x_start = 0;
+    if (x_end >= SCREEN_W) x_end = SCREEN_W - 1;
 
     for (int x = x_start; x <= x_end; x++) {
         float fx = (float)(x - eye_cx);
-        float r_sq = fx * fx + fy * fy;
-        if (r_sq > eye_r_sq) continue;
+        float e = (fx * fx) / (EYE_RX * EYE_RX) + (fy * fy) / (EYE_RY * EYE_RY);
+        if (e > 1.0f) continue;
 
-        /* White eye fill */
         buf[x] = pal[PAL_SCLERA];
 
-        /* Eye outline ring */
-        float r = sqrtf(r_sq);
-        if (EYE_R - r < 2.0f) {
-            buf[x] = pal[PAL_BG_EDGE];
-            continue;
-        }
-
-        /* Black pupil */
         if (dist_sq(fx, fy, pdx, pdy) < pupil_r_sq) {
-            if (shine > 0.1f && dist_sq(fx, fy, clx, cly) < cl_r_sq) {
-                buf[x] = pal[PAL_SHINE];   /* white catchlight */
+            float shine1_x = pdx - pupil_r * 0.35f;
+            float shine1_y = pdy - pupil_r * 0.4f;
+            float shine2_x = pdx + pupil_r * 0.3f;
+            float shine2_y = pdy + pupil_r * 0.35f;
+            float shine_r = 2.2f * sqrtf(shine);
+            float shine_r_sq = shine_r * shine_r;
+            float shine2_r = 1.5f * sqrtf(shine);
+            float shine2_r_sq = shine2_r * shine2_r;
+
+            if (shine > 0.1f &&
+                (dist_sq(fx, fy, shine1_x, shine1_y) < shine_r_sq ||
+                 dist_sq(fx, fy, shine2_x, shine2_y) < shine2_r_sq)) {
+                buf[x] = pal[PAL_SHINE];
             } else {
-                buf[x] = pal[PAL_PUPIL];   /* black pupil */
+                buf[x] = pal[PAL_PUPIL];
             }
         }
     }
@@ -272,48 +246,46 @@ static void draw_eye_right(int y, const face_state_t *st, const sprite_set_t *sp
 }
 
 /* ════════════════════════════════════════════════════════════════
- *  Mouth: quadratic-bezier smile curve under snout
+ *  Mouth: W-shaped black curve under snout
  * ══════════════════════════════════════════════════════════════ */
 
 static void draw_mouth(int y, const face_state_t *st, const sprite_set_t *sp, uint16_t *buf) {
     const mouth_params_t *mp = &st->mouth;
     const uint16_t *pal = sp->pal;
 
-    float half_thick = 2.0f + mp->openness * 2.0f;
-    float dip = MOUTH_DIP + mp->openness * 4.0f;
+    float half_thick = 2.0f + mp->openness * 1.5f;
+    float dip = MOUTH_DIP + mp->openness * 3.0f;
 
-    /* Quadratic bezier: left corner → center dip → right corner */
     float x0 = (float)CENTER_X - MOUTH_HW;
     float y0 = MOUTH_Y;
-    float x1 = (float)CENTER_X;
-    float y1 = MOUTH_Y + dip;
+    float xm = (float)CENTER_X;
+    float ym = MOUTH_Y + dip;
     float x2 = (float)CENTER_X + MOUTH_HW;
     float y2 = MOUTH_Y;
 
-    draw_quad_bezier_scan(y, x0, y0, x1, y1, x2, y2,
+    draw_quad_bezier_scan(y, x0, y0, xm, ym, x2, y2,
                           half_thick, pal[PAL_MOUTH], buf, SCREEN_W);
 }
 
 /* ════════════════════════════════════════════════════════════════
- *  Brows: subtle bezier arcs above eyes (expression-driven)
+ *  Brows: thin black arcs above eyes
  * ══════════════════════════════════════════════════════════════ */
 
 static void draw_brow_pig(int y, const brow_params_t *bp, int eye_cx, int eye_cy,
                            const uint16_t *pal, uint16_t *buf) {
     float thick = bp->thickness;
-    if (thick < 0.3f) return;  /* only show when expression pushes brows */
+    if (thick < 0.3f) return;
 
-    float half_thick = thick * 1.8f;
-    float brow_y = (float)eye_cy - EYE_R - 6.0f;
+    float half_thick = thick * 1.5f;
+    float brow_y = (float)eye_cy - EYE_RY - 6.0f;
 
-    float inner_x = (float)eye_cx - 8.0f;
+    float inner_x = (float)eye_cx - 10.0f;
     float inner_y = brow_y + bp->arch.dy * 4.0f;
     float arch_x  = (float)eye_cx;
-    float arch_y  = inner_y - 5.0f * thick;
-    float tail_x  = (float)eye_cx + 8.0f;
+    float arch_y  = inner_y - 3.0f * thick;
+    float tail_x  = (float)eye_cx + 10.0f;
     float tail_y  = brow_y + bp->tail.dy * 3.0f;
 
-    /* Use cubic bezier scan for smooth brow */
     draw_cubic_bezier_scan(y,
                            inner_x, inner_y,
                            arch_x - 2.0f, arch_y,
@@ -335,7 +307,7 @@ static void draw_brow_right(int y, const face_state_t *st, const sprite_set_t *s
 }
 
 /* ════════════════════════════════════════════════════════════════
- *  Blush: rosy filled circles under/outside eyes
+ *  Blush: black filled dots under eyes
  * ══════════════════════════════════════════════════════════════ */
 
 static void draw_blush(int y, const face_state_t *st, const sprite_set_t *sp, uint16_t *buf) {
@@ -343,16 +315,15 @@ static void draw_blush(int y, const face_state_t *st, const sprite_set_t *sp, ui
     if (level < 0.05f) return;
     const uint16_t *pal = sp->pal;
 
-    float blush_r = 13.0f * level;
+    float blush_r = 7.0f;
     for (int side = 0; side < 2; side++) {
-        int bx = (side == 0) ? CENTER_X - 52 : CENTER_X + 52;
-        int by = (int)BLUSH_CY;
-        fill_circle_scan(y, bx, by, blush_r, pal[PAL_BLUSH], buf, SCREEN_W);
+        int bx = CENTER_X + (side == 0 ? -44 : 44);
+        fill_circle_scan(y, bx, (int)BLUSH_CY, blush_r, pal[PAL_BLUSH], buf, SCREEN_W);
     }
 }
 
 /* ════════════════════════════════════════════════════════════════
- *  Decor overlay: none (pig design is complete without extras)
+ *  Decor overlay: not used for pig
  * ══════════════════════════════════════════════════════════════ */
 
 static void draw_decor_overlay(int y, const face_state_t *st,
@@ -360,30 +331,28 @@ static void draw_decor_overlay(int y, const face_state_t *st,
     (void)y; (void)st; (void)sp; (void)buf;
 }
 
-/* ── draw_props ─────────────────────────────────────────────── */
+/* ── draw_props: threshold opacity, no blending ─────────────── */
 
 static void draw_props(int y, const face_state_t *st,
                        const sprite_set_t *sp, uint16_t *buf) {
     for (int i = 0; i < st->decor.prop_count; i++) {
         const prop_instance_t *p = &st->decor.props[i];
-        if (p->opacity <= 0.01f) continue;
+        if (p->opacity <= 0.5f) continue;
 
         float r = 100.0f * p->distance;
         float px = CENTER_X + r * cosf(p->angle);
         float py = CENTER_Y - r * sinf(p->angle);
         float sz = 10.0f + p->scale * 12.0f;
 
-        uint16_t raw_color;
+        uint16_t color;
         switch (p->type) {
-        case PROP_HEART:      raw_color = sp->pal[PAL_BLUSH]; break;
-        case PROP_TEACUP:     raw_color = sp->pal[PAL_SKIN];  break;
-        case PROP_HAND:       raw_color = sp->pal[PAL_SKIN];  break;
-        case PROP_STAR_SMALL: raw_color = sp->pal[PAL_STAR];  break;
-        case PROP_SWEAT_DROP: raw_color = sp->pal[PAL_TEAR];  break;
+        case PROP_HEART:      color = sp->pal[PAL_BLUSH]; break;
+        case PROP_TEACUP:     color = sp->pal[PAL_SKIN];  break;
+        case PROP_HAND:       color = sp->pal[PAL_SKIN];  break;
+        case PROP_STAR_SMALL: color = sp->pal[PAL_STAR];  break;
+        case PROP_SWEAT_DROP: color = sp->pal[PAL_TEAR];  break;
         default: continue;
         }
-
-        uint16_t color = blend_colors(sp->pal[PAL_BG], raw_color, p->opacity);
 
         switch (p->type) {
         case PROP_HEART:      draw_heart_scan(y, px, py, sz, color, buf, SCREEN_W); break;
@@ -402,10 +371,10 @@ static void draw_props(int y, const face_state_t *st,
 
 const sprite_set_t SPRITE_PIG = {
     .name = "pig",
-    .eye_radius = EYE_R,
+    .eye_radius = EYE_RY,
     .eye_half_spacing = EYE_HALF_SPACE,
     .mouth_y_center = MOUTH_Y - (float)CENTER_Y,
-    .brow_y_offset = -(EYE_R + 6.0f),
+    .brow_y_offset = -(EYE_RY + 6.0f),
     .blush_y_offset = BLUSH_CY - (float)CENTER_Y,
     .draw_face = draw_face,
     .draw_blush = draw_blush,
