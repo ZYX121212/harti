@@ -38,6 +38,7 @@ typedef struct {
     face_kpt_t top_lid_mid;
     face_kpt_t bot_lid_mid;
     face_kpt_t iris_center;
+    face_kpt_t position;      /* whole-eye shift, normalized -1..1 -> +/-15 px */
     float pupil_scale;
     float shine_intensity;
     float iris_detail;   /* 0..1, limbal ring + tertiary shine intensity */
@@ -54,12 +55,34 @@ typedef struct {
     float tooth_show;    /* 0..1, teeth visibility when mouth open */
 } mouth_params_t;
 
+/* ── Prop (floating decoration sticker) ─────────────────────── */
+
+typedef enum {
+    PROP_NONE = 0,
+    PROP_HEART,
+    PROP_TEACUP,
+    PROP_HAND,
+    PROP_STAR_SMALL,
+    PROP_SWEAT_DROP,
+    PROP_COUNT
+} prop_type_t;
+
+typedef struct {
+    prop_type_t type;
+    float angle;       /* radians, 0 = right, π/2 = top */
+    float distance;    /* 0.0..1.0, 1.0 = 100 px from face center */
+    float scale;       /* 0.0..1.0 */
+    float opacity;     /* 0.0..1.0, for fade in/out */
+} prop_instance_t;
+
 typedef struct {
     float blush;
     float tears;
     float stars;
     float sweat;
     float sparkle;
+    uint8_t prop_count;
+    prop_instance_t props[3];
 } decor_params_t;
 
 /* ── Component enum ──────────────────────────────────────── */
@@ -89,12 +112,6 @@ typedef struct {
 
 typedef uint8_t expression_id_t;
 
-typedef struct {
-    expression_id_t expr_a;
-    expression_id_t expr_b;
-    float blend;          /* 0.0 = pure A, 1.0 = pure B */
-} expression_blend_t;
-
 typedef enum {
     PATH_LINEAR = 0,
     PATH_EASE_OUT,
@@ -117,7 +134,6 @@ typedef struct {
 
 /* ── Sprite set ──────────────────────────────────────────── */
 
-typedef uint8_t sprite_id_t;
 struct sprite_set_s;
 
 typedef void (*sprite_draw_func_t)(int y, const face_state_t *st,
@@ -138,6 +154,7 @@ typedef struct sprite_set_s {
     sprite_draw_func_t draw_brow_left;
     sprite_draw_func_t draw_brow_right;
     sprite_draw_func_t draw_decor_overlay;
+    sprite_draw_func_t draw_props;
     const uint16_t *pal;
 } sprite_set_t;
 
@@ -146,7 +163,6 @@ typedef struct sprite_set_s {
 extern const face_state_t FACE_STATE_NEUTRAL;
 extern const expression_def_t EXPRESSION_DEFS[];
 extern const uint8_t EXPRESSION_COUNT;
-extern const sprite_set_t SPRITE_CLASSIC;
 
 #ifdef __cplusplus
 }
