@@ -151,73 +151,104 @@ void micro_animator_apply(face_state_t *s) {
     uint32_t now = lv_tick_get();
 
     /* ══════════════════════════════════════════════════════
-       1. Blink
+       1. Blink / Wink (per-eye)
        ══════════════════════════════════════════════════════ */
 
+    // Shared interval adjustment based on average lid position
     float avg_lid = (s->eye[0].top_lid_mid.dy + s->eye[1].top_lid_mid.dy) * 0.5f;
     int interval_adj = 0;
     if (avg_lid < -0.08f)      interval_adj = BLINK_WIDE_EYE_EXTRA;
     else if (avg_lid > 0.15f)  interval_adj = BLINK_DROOPY_FAST;
 
-    switch (blink_phase) {
+    // Shared auto-blink trigger: both eyes waiting → decide blink vs wink
+    if (now >= next_blink_at) {
+        bool both_available = (eye_blink[0].phase == BLINK_WAITING && !eye_blink[0].winking)
+                           && (eye_blink[1].phase == BLINK_WAITING && !eye_blink[1].winking);
 
-    case BLINK_WAITING:
-        if (now >= next_blink_at) {
-            blink_phase = BLINK_CLOSING;
-            blink_start = now;
-            blink_is_double = (!blink_double_done && randf() < DOUBLE_BLINK_CHANCE);
-        }
-        break;
-
-    case BLINK_CLOSING: {
-        uint32_t elapsed = now - blink_start;
-        blink_t = clampf((float)elapsed / BLINK_CLOSE_MS, 0.0f, 1.0f);
-        if (elapsed >= BLINK_CLOSE_MS) {
-            blink_t = 1.0f;
-            blink_phase = BLINK_CLOSED;
-            blink_start = now;
-        }
-        break;
-    }
-
-    case BLINK_CLOSED:
-        blink_t = 1.0f;
-        if (now - blink_start >= BLINK_HOLD_MS) {
-            blink_phase = BLINK_OPENING;
-            blink_start = now;
-        }
-        break;
-
-    case BLINK_OPENING: {
-        uint32_t elapsed = now - blink_start;
-        blink_t = 1.0f - clampf((float)elapsed / BLINK_OPEN_MS, 0.0f, 1.0f);
-        if (elapsed >= BLINK_OPEN_MS) {
-            blink_t = 0.0f;
-            if (blink_is_double) {
-                // Start second blink after a tiny gap
-                blink_is_double = false;
-                blink_double_done = true;
-                blink_phase = BLINK_CLOSING;
-                blink_start = now;
-            } else {
-                blink_phase = BLINK_WAITING;
-                blink_start = now;
-                blink_double_done = false;
-                next_blink_at = now + rand_ms(
-                    BLINK_INTERVAL_MIN + interval_adj,
-                    BLINK_INTERVAL_MAX + interval_adj);
+        if (both_available && randf() < AUTO_WINK_CHANCE) {
+            // Auto-wink: pick a random eye
+            int w = (rand() & 1);
+            eye_blink[w].phase = BLINK_CLOSING;
+            eye_blink[w].phase_start = now;
+            eye_blink[w].is_double = (!eye_blink[w].double_done && randf() < DOUBLE_BLINK_CHANCE);
+        } else {
+            // Normal blink: start any available eye(s)
+            for (int i = 0; i < 2; i++) {
+                if (eye_blink[i].phase == BLINK_WAITING && !eye_blink[i].winking) {
+                    eye_blink[i].phase = BLINK_CLOSING;
+                    eye_blink[i].phase_start = now;
+                    eye_blink[i].is_double = (!eye_blink[i].double_done && randf() < DOUBLE_BLINK_CHANCE);
+                }
             }
         }
-        break;
-    }
+        // Timer consumed — will be reset when all eyes return to WAITING
+        next_blink_at = UINT32_MAX;
     }
 
-    // Apply blink to both eyes
-    if (blink_t > 0.0f) {
-        for (int i = 0; i < 2; i++) {
+    // Per-eye phase machine
+    for (int i = 0; i < 2; i++) {
+        eye_blink_t *eb = &eye_blink[i];
+
+        switch (eb->phase) {
+
+        case BLINK_WAITING:
+            break;  // nothing to do, timer trigger handles transition
+
+        case BLINK_CLOSING: {
+            uint32_t elapsed = now - eb->phase_start;
+            eb->t = clampf((float)elapsed / BLINK_CLOSE_MS, 0.0f, 1.0f);
+            if (elapsed >= BLINK_CLOSE_MS) {
+                eb->t = 1.0f;
+                eb->phase = BLINK_CLOSED;
+                eb->phase_start = now;
+            }
+            break;
+        }
+
+        case BLINK_CLOSED:
+            eb->t = 1.0f;
+            if (now - eb->phase_start >= BLINK_HOLD_MS) {
+                eb->phase = BLINK_OPENING;
+                eb->phase_start = now;
+            }
+            break;
+
+        case BLINK_OPENING: {
+            uint32_t elapsed = now - eb->phase_start;
+            eb->t = 1.0f - clampf((float)elapsed / BLINK_OPEN_MS, 0.0f, 1.0f);
+            if (elapsed >= BLINK_OPEN_MS) {
+                eb->t = 0.0f;
+                if (eb->is_double) {
+                    eb->is_double = false;
+                    eb->double_done = true;
+                    eb->phase = BLINK_CLOSING;
+                    eb->phase_start = now;
+                } else {
+                    eb->phase = BLINK_WAITING;
+                    eb->phase_start = now;
+                    eb->double_done = false;
+                    eb->winking = false;  // clear manual wink flag
+                }
+            }
+            break;
+        }
+        }
+    }
+
+    // Reset shared timer when both eyes are idle
+    if (eye_blink[0].phase == BLINK_WAITING && eye_blink[1].phase == BLINK_WAITING
+        && next_blink_at == UINT32_MAX) {
+        next_blink_at = now + rand_ms(
+            BLINK_INTERVAL_MIN + interval_adj,
+            BLINK_INTERVAL_MAX + interval_adj);
+    }
+
+    // Apply per-eye blink to eyelids
+    for (int i = 0; i < 2; i++) {
+        if (eye_blink[i].t > 0.0f) {
             float expr_lid = s->eye[i].top_lid_mid.dy;
             float closed_lid = expr_lid + BLINK_CLOSED_LID;
-            s->eye[i].top_lid_mid.dy = lerpf(expr_lid, closed_lid, blink_t);
+            s->eye[i].top_lid_mid.dy = lerpf(expr_lid, closed_lid, eye_blink[i].t);
         }
     }
 
