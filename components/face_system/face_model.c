@@ -25,7 +25,7 @@ static const mouth_params_t MOUTH_NEUTRAL = {
 };
 
 static const decor_params_t DECOR_NEUTRAL = {
-    .blush = 0.38f, .tears = 0, .stars = 0, .sweat = 0, .sparkle = 0.18f,
+    .blush = 0.0f, .tears = 0, .stars = 0, .sweat = 0, .sparkle = 0,
     .prop_count = 0,
 };
 
@@ -105,7 +105,7 @@ const expression_def_t EXPRESSION_DEFS[] = {
                 .upper_lip_mid = {0, -0.15f}, .lower_lip_mid = {0, 0.05f},
                 .openness = 0.0f, .cupid_depth = 0.7f, .tooth_show = 0.6f,
             },
-            .decor = {.blush = 0.72f, .tears = 0, .stars = 0.15f, .sweat = 0, .sparkle = 0.35f},
+            .decor = {.blush = 0.0f, .tears = 0, .stars = 0, .sweat = 0, .sparkle = 0},
         },
         .timing = {
             [COMPONENT_FACE]       = {125, 0, PATH_EASE_OUT},
@@ -145,7 +145,7 @@ const expression_def_t EXPRESSION_DEFS[] = {
                 .upper_lip_mid = {0, 0.1f}, .lower_lip_mid = {0, 0.15f},
                 .openness = 0.1f, .cupid_depth = 0.1f,
             },
-            .decor = {.blush = 0.2f, .tears = 0.6f, .stars = 0, .sweat = 0, .sparkle = 0},
+            .decor = {.blush = 0.0f, .tears = 0.6f, .stars = 0, .sweat = 0, .sparkle = 0},
         },
         .timing = {
             [COMPONENT_FACE]       = {200, 0, PATH_EASE_IN_OUT},
@@ -185,7 +185,7 @@ const expression_def_t EXPRESSION_DEFS[] = {
                 .upper_lip_mid = {0, -0.1f}, .lower_lip_mid = {0, 0.25f},
                 .openness = 0.5f, .cupid_depth = 0.3f,
             },
-            .decor = {.blush = 0.15f, .tears = 0, .stars = 0, .sweat = 0, .sparkle = 0.2f},
+            .decor = {.blush = 0.0f, .tears = 0, .stars = 0, .sweat = 0, .sparkle = 0},
         },
         .timing = {
             [COMPONENT_FACE]       = {100, 0, PATH_EASE_OUT},
@@ -225,7 +225,7 @@ const expression_def_t EXPRESSION_DEFS[] = {
                 .upper_lip_mid = {0, 0.05f}, .lower_lip_mid = {0, 0.0f},
                 .openness = 0.2f, .cupid_depth = 0.3f,
             },
-            .decor = {.blush = 0.1f, .tears = 0, .stars = 0, .sweat = 0, .sparkle = 0},
+            .decor = {.blush = 0.0f, .tears = 0, .stars = 0, .sweat = 0, .sparkle = 0},
         },
         .timing = {
             [COMPONENT_FACE]       = {300, 0, PATH_EASE_IN_OUT},
@@ -265,7 +265,7 @@ const expression_def_t EXPRESSION_DEFS[] = {
                 .upper_lip_mid = {0, 0.05f}, .lower_lip_mid = {0, 0.1f},
                 .openness = 0.0f, .cupid_depth = 0.5f,
             },
-            .decor = {.blush = 0, .tears = 0, .stars = 0, .sweat = 0, .sparkle = 0},
+            .decor = {.blush = 0.0f, .tears = 0, .stars = 0, .sweat = 0, .sparkle = 0},
         },
         .timing = {
             [COMPONENT_FACE]       = {100, 0, PATH_EASE_OUT},
@@ -305,7 +305,7 @@ const expression_def_t EXPRESSION_DEFS[] = {
                 .upper_lip_mid = {0, 0.05f}, .lower_lip_mid = {0, 0.02f},
                 .openness = 0.05f, .cupid_depth = 0.35f,
             },
-            .decor = {.blush = 0, .tears = 0, .stars = 0, .sweat = 0, .sparkle = 0},
+            .decor = {.blush = 0.0f, .tears = 0, .stars = 0, .sweat = 0, .sparkle = 0},
         },
         .timing = {
             [COMPONENT_FACE]       = {250, 0, PATH_EASE_IN_OUT},
@@ -345,7 +345,7 @@ const expression_def_t EXPRESSION_DEFS[] = {
                 .upper_lip_mid = {0, -0.2f}, .lower_lip_mid = {0, 0.1f},
                 .openness = 0.3f, .cupid_depth = 0.65f, .tooth_show = 0.5f,
             },
-            .decor = {.blush = 0.4f, .tears = 0, .stars = 0.65f, .sweat = 0, .sparkle = 0.3f},
+            .decor = {.blush = 0.0f, .tears = 0, .stars = 0, .sweat = 0, .sparkle = 0},
         },
         .timing = {
             [COMPONENT_FACE]       = {100, 0, PATH_EASE_OUT},
@@ -385,7 +385,7 @@ const expression_def_t EXPRESSION_DEFS[] = {
                 .upper_lip_mid = {0.05f, 0.05f}, .lower_lip_mid = {0, 0.02f},
                 .openness = 0.08f, .cupid_depth = 0.35f,
             },
-            .decor = {.blush = 0.08f, .tears = 0, .stars = 0, .sweat = 0.35f, .sparkle = 0},
+            .decor = {.blush = 0.0f, .tears = 0, .stars = 0, .sweat = 0.35f, .sparkle = 0},
         },
         .timing = {
             [COMPONENT_FACE]       = {150, 0, PATH_EASE_OUT},
@@ -425,7 +425,7 @@ const expression_def_t EXPRESSION_DEFS[] = {
                 .upper_lip_mid = {0, -0.1f}, .lower_lip_mid = {0, 0.02f},
                 .openness = 0.0f, .cupid_depth = 0.5f,
             },
-            .decor = {.blush = 0.75f, .tears = 0, .stars = 0.2f, .sweat = 0, .sparkle = 0},
+            .decor = {.blush = 0.0f, .tears = 0, .stars = 0, .sweat = 0, .sparkle = 0},
         },
         .timing = {
             [COMPONENT_FACE]       = {250, 0, PATH_EASE_IN_OUT},
@@ -465,7 +465,7 @@ const expression_def_t EXPRESSION_DEFS[] = {
                 .upper_lip_mid = {0, 0.02f}, .lower_lip_mid = {0, 0.08f},
                 .openness = 0.0f, .cupid_depth = 0.4f,
             },
-            .decor = {.blush = 0.3f, .tears = 0, .stars = 0, .sweat = 0, .sparkle = 0},
+            .decor = {.blush = 0.0f, .tears = 0, .stars = 0, .sweat = 0, .sparkle = 0},
         },
         .timing = {
             [COMPONENT_FACE]       = {200, 0, PATH_EASE_IN_OUT},
@@ -505,7 +505,7 @@ const expression_def_t EXPRESSION_DEFS[] = {
                 .upper_lip_mid = {0, -0.15f}, .lower_lip_mid = {0, 0.02f},
                 .openness = 0.05f, .cupid_depth = 0.6f,
             },
-            .decor = {.blush = 0.5f, .tears = 0, .stars = 0.3f, .sweat = 0, .sparkle = 0.1f},
+            .decor = {.blush = 0.0f, .tears = 0, .stars = 0, .sweat = 0, .sparkle = 0},
         },
         .timing = {
             [COMPONENT_FACE]       = {175, 0, PATH_EASE_OUT},
@@ -545,7 +545,7 @@ const expression_def_t EXPRESSION_DEFS[] = {
                 .upper_lip_mid = {0, -0.2f}, .lower_lip_mid = {0, 0.05f},
                 .openness = 0.15f, .cupid_depth = 0.7f,
             },
-            .decor = {.blush = 0.65f, .tears = 0, .stars = 0.9f, .sweat = 0, .sparkle = 0.5f},
+            .decor = {.blush = 0.0f, .tears = 0, .stars = 0, .sweat = 0, .sparkle = 0},
         },
         .timing = {
             [COMPONENT_FACE]       = {125, 0, PATH_EASE_OUT},
@@ -555,6 +555,46 @@ const expression_def_t EXPRESSION_DEFS[] = {
             [COMPONENT_EYE_RIGHT]  = {100, 20, PATH_EASE_OUT},
             [COMPONENT_MOUTH]      = {140, 60, PATH_OVERSPEED},
             [COMPONENT_DECOR]      = {125, 30, PATH_EASE_OUT},
+        },
+    },
+    // [13] THINKING
+    {
+        .name = "THINKING",
+        .target = {
+            .face = {.roundness = 0.58f},
+            .brow = {
+                {.inner = {0, -0.22f}, .arch = {0, -0.42f}, .tail = {0, -0.05f}, .thickness = 0.88f},
+                {.inner = {0, 0.10f}, .arch = {0, 0.15f}, .tail = {0, 0.22f}, .thickness = 1.0f},
+            },
+            .eye = {
+                {.inner_corner = {0, 0}, .outer_corner = {0, 0},
+                 .top_lid_mid = {0, 0.11f}, .bot_lid_mid = {0, 0},
+                 .iris_center = {0.24f, -0.33f},
+                 .position = {0, 0},
+                 .pupil_scale = 0.52f, .shine_intensity = 0.6f,
+                 .iris_detail = 0.4f, .eyelash = 0.6f},
+                {.inner_corner = {0, 0}, .outer_corner = {0, 0},
+                 .top_lid_mid = {0, 0.18f}, .bot_lid_mid = {0, 0.06f},
+                 .iris_center = {0.24f, -0.33f},
+                 .position = {0, 0},
+                 .pupil_scale = 0.45f, .shine_intensity = 0.5f,
+                 .iris_detail = 0.35f, .eyelash = 0.65f},
+            },
+            .mouth = {
+                .left_corner = {0.22f, 0.06f}, .right_corner = {-0.02f, 0.0f},
+                .upper_lip_mid = {0.06f, 0.02f}, .lower_lip_mid = {0, 0.02f},
+                .openness = 0.06f, .cupid_depth = 0.38f,
+            },
+            .decor = {.blush = 0.0f, .tears = 0, .stars = 0, .sweat = 0, .sparkle = 0},
+        },
+        .timing = {
+            [COMPONENT_FACE]       = {200, 0, PATH_EASE_IN_OUT},
+            [COMPONENT_BROW_LEFT]  = {180, 0, PATH_EASE_OUT},
+            [COMPONENT_BROW_RIGHT] = {180, 0, PATH_EASE_OUT},
+            [COMPONENT_EYE_LEFT]   = {160, 30, PATH_EASE_OUT},
+            [COMPONENT_EYE_RIGHT]  = {160, 30, PATH_EASE_OUT},
+            [COMPONENT_MOUTH]      = {200, 80, PATH_EASE_OUT},
+            [COMPONENT_DECOR]      = {100, 0, PATH_EASE_OUT},
         },
     },
 };
