@@ -471,6 +471,42 @@ static void draw_decor_overlay(int y, const face_state_t *st,
     }
 }
 
+/* ── draw_props ─────────────────────────────────────────────── */
+
+static void draw_props(int y, const face_state_t *st,
+                       const sprite_set_t *sp, uint16_t *buf) {
+    for (int i = 0; i < st->decor.prop_count; i++) {
+        const prop_instance_t *p = &st->decor.props[i];
+        if (p->opacity <= 0.01f) continue;
+
+        float r = 100.0f * p->distance;
+        float px = CENTER_X + r * cosf(p->angle);
+        float py = CENTER_Y - r * sinf(p->angle);
+        float sz = 10.0f + p->scale * 12.0f;
+
+        uint16_t raw_color;
+        switch (p->type) {
+        case PROP_HEART:      raw_color = sp->pal[PAL_BLUSH]; break;
+        case PROP_TEACUP:     raw_color = sp->pal[PAL_SKIN];  break;
+        case PROP_HAND:       raw_color = sp->pal[PAL_SKIN];  break;
+        case PROP_STAR_SMALL: raw_color = sp->pal[PAL_STAR];  break;
+        case PROP_SWEAT_DROP: raw_color = sp->pal[PAL_TEAR];  break;
+        default: continue;
+        }
+
+        uint16_t color = blend_colors(sp->pal[PAL_BG], raw_color, p->opacity);
+
+        switch (p->type) {
+        case PROP_HEART:      draw_heart_scan(y, px, py, sz, color, buf, SCREEN_W); break;
+        case PROP_TEACUP:     draw_teacup_scan(y, px, py, sz, color, buf, SCREEN_W); break;
+        case PROP_HAND:       draw_hand_scan(y, px, py, sz, color, buf, SCREEN_W); break;
+        case PROP_STAR_SMALL: draw_star_scan(y, px, py, sz, color, buf, SCREEN_W); break;
+        case PROP_SWEAT_DROP: draw_sweat_scan(y, px, py, sz, color, buf, SCREEN_W); break;
+        default: break;
+        }
+    }
+}
+
 /* ── Sprite definition ────────────────────────────────────── */
 
 const sprite_set_t SPRITE_CHIBI = {
@@ -488,5 +524,6 @@ const sprite_set_t SPRITE_CHIBI = {
     .draw_brow_left = draw_brow_left,
     .draw_brow_right = draw_brow_right,
     .draw_decor_overlay = draw_decor_overlay,
+    .draw_props = draw_props,
     .pal = PALETTE_CHIBI,
 };
