@@ -230,6 +230,18 @@ static inline void fill_circle_scan(int y, int cx, int cy, float r,
     for (int x = x0; x <= x1; x++) buf[x] = color;
 }
 
+/** 填充椭圆（scanline）。当 rx=ry 时等价于 fill_circle_scan。 */
+static inline void fill_ellipse_scan(int y,
+    int cx, int cy, float rx, float ry,
+    uint16_t color, uint16_t *buf, int screen_w) {
+    float dy = (float)(y - cy);
+    if (fabsf(dy) > ry) return;
+    float xspan = rx * sqrtf(1.0f - (dy * dy) / (ry * ry));
+    int x0 = cx - (int)xspan; if (x0 < 0) x0 = 0;
+    int x1 = cx + (int)xspan; if (x1 >= screen_w) x1 = screen_w - 1;
+    for (int x = x0; x <= x1; x++) buf[x] = color;
+}
+
 /** 圆环（轮廓圆）scanline 绘制。 */
 static inline void draw_ring_scan(int y, int cx, int cy, float inner_r, float outer_r,
                                    uint16_t color, uint16_t *buf, int screen_w) {
@@ -308,6 +320,146 @@ static inline void draw_wavy_ring_scan(int y, int cx, int cy, float base_r, floa
         float d2 = dist_sq(x, y, cx, cy);
         if (in_ring_sq(d2, mod_r - thick * 0.5f, mod_r + thick * 0.5f)) buf[x] = color;
     }
+}
+
+/* ════════════════════════════════════════════════════════════════
+ *  Filled shapes — scanline drawing
+ * ══════════════════════════════════════════════════════════════ */
+
+/** 填充任意三角形（scanline）。
+ *  用 edge-function 方法：对每行求与 3 条边的交点，填充 [x_min, x_max]。
+ *  顶点顺序任意，自动处理顺时针/逆时针。 */
+static inline void fill_triangle_scan(int y,
+    float x0, float y0, float x1, float y1, float x2, float y2,
+    uint16_t color, uint16_t *buf, int screen_w) {
+    /* Sort vertices by y: v0 top, v1 middle, v2 bottom */
+    if (y0 > y1) { float tx = x0; x0 = x1; x1 = tx; float ty = y0; y0 = y1; y1 = ty; }
+    if (y1 > y2) { float tx = x1; x1 = x2; x2 = tx; float ty = y1; y1 = y2; y2 = ty; }
+    if (y0 > y1) { float tx = x0; x0 = x1; x1 = tx; float ty = y0; y0 = y1; y1 = ty; }
+
+    float fy = (float)y;
+    if (fy < y0 || fy > y2) return;
+
+    /* Compute x-intersections of row y with edges */
+    float xs[4];
+    int nx = 0;
+
+    /* Edge v0→v1 */
+    if (y1 > y0) {
+        float t = (fy - y0) / (y1 - y0);
+        if (t >= 0.0f && t <= 1.0f) xs[nx++] = x0 + t * (x1 - x0);
+    }
+    /* Edge v0→v2 */
+    if (y2 > y0) {
+        float t = (fy - y0) / (y2 - y0);
+        if (t >= 0.0f && t <= 1.0f) xs[nx++] = x0 + t * (x2 - x0);
+    }
+    /* Edge v1→v2 */
+    if (y2 > y1) {
+        float t = (fy - y1) / (y2 - y1);
+        if (t >= 0.0f && t <= 1.0f) xs[nx++] = x1 + t * (x2 - x1);
+    }
+
+    if (nx < 2) return;
+
+    /* Find min and max x among intersections */
+    float x_min = xs[0], x_max = xs[0];
+    for (int i = 1; i < nx; i++) {
+        if (xs[i] < x_min) x_min = xs[i];
+        if (xs[i] > x_max) x_max = xs[i];
+    }
+
+    /* Fill span */
+    int xl = (int)x_min; if (xl < 0) xl = 0;
+    int xr = (int)x_max; if (xr >= screen_w) xr = screen_w - 1;
+    for (int x = xl; x <= xr; x++) buf[x] = color;
+}
+
+/** 填充正 N 边形（scanline）。
+ *  n_sides 限制在 [3, 8]，rotation_deg 控制旋转角度（0° = 顶点朝上）。 */
+static inline void fill_ngon_scan(int y,
+    int cx, int cy, float radius, int n_sides, float rotation_deg,
+    uint16_t color, uint16_t *buf, int screen_w) {
+    if (n_sides < 3) n_sides = 3;
+    if (n_sides > 8) n_sides = 8;
+
+    float dy = (float)(y - cy);
+    if (fabsf(dy) > radius) return;
+
+    /* Precompute vertices (stack array, 8×2 floats) */
+    float vx[8], vy[8];
+    float angle_step = 2.0f * 3.14159265f / (float)n_sides;
+    float base_angle = rotation_deg * 3.14159265f / 180.0f;
+    for (int i = 0; i < n_sides; i++) {
+        float a = base_angle + angle_step * (float)i;
+        vx[i] = (float)cx + cosf(a) * radius;
+        vy[i] = (float)cy + sinf(a) * radius;
+    }
+
+    float fy = (float)y;
+
+    /* Find x-intersections of row y with all edges */
+    float x_min = (float)screen_w, x_max = -1.0f;
+    int found = 0;
+
+    for (int i = 0; i < n_sides; i++) {
+        int j = (i + 1) % n_sides;
+        float ey0 = vy[i], ey1 = vy[j];
+        if ((fy < ey0 && fy < ey1) || (fy > ey0 && fy > ey1)) continue;
+        if (ey1 == ey0) continue;
+        float t = (fy - ey0) / (ey1 - ey0);
+        float ix = vx[i] + t * (vx[j] - vx[i]);
+        if (ix < x_min) x_min = ix;
+        if (ix > x_max) x_max = ix;
+        found++;
+    }
+
+    if (found < 2) return;
+
+    int xl = (int)x_min; if (xl < 0) xl = 0;
+    int xr = (int)x_max; if (xr >= screen_w) xr = screen_w - 1;
+    for (int x = xl; x <= xr; x++) buf[x] = color;
+}
+
+/** 填充圆角矩形（scanline）。
+ *  corner_r 为四角倒角半径，left < right, top < bottom。 */
+static inline void fill_rounded_rect_scan(int y,
+    float left, float top, float right, float bottom, float corner_r,
+    uint16_t color, uint16_t *buf, int screen_w) {
+    float fy = (float)y;
+    if (fy < top || fy > bottom) return;
+
+    /* Clamp corner radius to fit */
+    float max_cr = (right - left) * 0.5f;
+    if (corner_r > max_cr) corner_r = max_cr;
+    float max_cr_y = (bottom - top) * 0.5f;
+    if (corner_r > max_cr_y) corner_r = max_cr_y;
+
+    float cr = corner_r;
+    float cr_sq = cr * cr;
+
+    /* Determine x bounds for this row */
+    float xs, xe;
+
+    if (fy >= top + cr && fy <= bottom - cr) {
+        /* Flat middle region: full width */
+        xs = left;
+        xe = right;
+    } else {
+        /* Corner region: inset by circle chord */
+        float corner_y;
+        if (fy < top + cr) corner_y = top + cr;
+        else               corner_y = bottom - cr;
+
+        float dy_c = fy - corner_y;
+        float chord = sqrtf(cr_sq - dy_c * dy_c);
+        xs = left + cr - chord;
+        xe = right - cr + chord;
+    }
+
+    int xl = (int)xs; if (xl < 0) xl = 0;
+    int xr = (int)xe; if (xr >= screen_w) xr = screen_w - 1;
+    for (int x = xl; x <= xr; x++) buf[x] = color;
 }
 
 /* ════════════════════════════════════════════════════════════════
