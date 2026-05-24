@@ -21,6 +21,10 @@ void micro_animator_set_tilt(float pitch, float roll);
 // Enable/disable all micro-animations
 void micro_animator_set_enabled(bool on);
 
+// Trigger a one-shot wink on a specific eye (0=left, 1=right).
+// Interrupts any in-progress blink on that eye.
+void micro_animator_wink(int eye);
+
 #ifdef __cplusplus
 }
 #endif

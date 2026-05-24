@@ -146,6 +146,16 @@ void micro_animator_set_tilt(float pitch, float roll) {
 
 void micro_animator_set_enabled(bool on) { enabled = on; }
 
+void micro_animator_wink(int eye) {
+    if (eye < 0 || eye > 1) return;
+    eye_blink[eye].phase = BLINK_CLOSING;
+    eye_blink[eye].phase_start = lv_tick_get();
+    eye_blink[eye].t = 0.0f;
+    eye_blink[eye].is_double = false;
+    eye_blink[eye].double_done = false;
+    eye_blink[eye].winking = true;
+}
+
 void micro_animator_apply(face_state_t *s) {
     if (!enabled) return;
     uint32_t now = lv_tick_get();

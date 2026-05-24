@@ -47,6 +47,10 @@ static inline void face_set_tilt(float pitch, float roll) {
     micro_animator_set_tilt(pitch, roll);
 }
 
+static inline void face_wink(int eye) {
+    micro_animator_wink(eye);
+}
+
 static inline void face_render_frame(void) {
     face_state_t display_state = *animator_get_state();
     micro_animator_apply(&display_state);
