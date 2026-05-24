@@ -8,6 +8,7 @@
 #include "sprite_cat.h"
 #include "sprite_pixel.h"
 #include "sprite_robot.h"
+#include "sprite_lineart.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -16,7 +17,7 @@ extern "C" {
 static inline void face_init(void) {
     animator_init();
     renderer_init();
-    renderer_set_sprite(&SPRITE_CLASSIC);
+    renderer_set_sprite(&SPRITE_LINEART);
 }
 
 static inline void face_set_expression(expression_id_t id) {

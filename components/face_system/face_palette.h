@@ -23,19 +23,19 @@ typedef enum {
 } palette_index_t;
 
 static const uint16_t PALETTE_WHITE[PAL_COUNT] = {
-    [PAL_BG]      = RGB565(255, 255, 255),
-    [PAL_BG_EDGE] = RGB565(235, 235, 235),
-    [PAL_SCLERA]  = RGB565(255, 255, 255),
-    [PAL_IRIS]    = RGB565(40, 40, 40),
-    [PAL_PUPIL]   = RGB565(0, 0, 0),
-    [PAL_BLUSH]   = RGB565(255, 160, 160),
-    [PAL_TEAR]    = RGB565(180, 210, 255),
-    [PAL_SHINE]   = RGB565(255, 255, 255),
-    [PAL_STAR]    = RGB565(255, 220, 0),
-    [PAL_SKIN]    = RGB565(255, 240, 225),
-    [PAL_BROW]    = RGB565(60, 50, 45),
-    [PAL_MOUTH]   = RGB565(200, 120, 120),
-    [PAL_TONGUE]  = RGB565(255, 100, 100),
+    [PAL_BG]      = RGB565(255, 249, 252),  // 奶粉白底色
+    [PAL_BG_EDGE] = RGB565(250, 221, 232),  // 柔粉边缘
+    [PAL_SCLERA]  = RGB565(255, 255, 255),  // 纯白眼白
+    [PAL_IRIS]    = RGB565(118, 74, 58),    // 奶茶棕虹膜
+    [PAL_PUPIL]   = RGB565(32, 20, 18),     // 柔和深棕瞳孔
+    [PAL_BLUSH]   = RGB565(255, 150, 180),  // 甜粉腮红
+    [PAL_TEAR]    = RGB565(180, 210, 255),  // 淡蓝泪滴
+    [PAL_SHINE]   = RGB565(255, 255, 255),  // 纯白高光
+    [PAL_STAR]    = RGB565(255, 225, 95),   // 暖黄星星
+    [PAL_SKIN]    = RGB565(255, 242, 230),  // 暖肤色
+    [PAL_BROW]    = RGB565(96, 62, 52),     // 柔棕眉毛
+    [PAL_MOUTH]   = RGB565(235, 105, 135),  // 莓粉嘴唇
+    [PAL_TONGUE]  = RGB565(255, 125, 145),  // 粉红舌头
 };
 
 static const uint16_t PALETTE_BLACK[PAL_COUNT] = {
@@ -100,6 +100,23 @@ static const uint16_t PALETTE_ROBOT[PAL_COUNT] = {
     [PAL_BROW]    = RGB565(50, 55, 60),
     [PAL_MOUTH]   = RGB565(180, 190, 200),
     [PAL_TONGUE]  = RGB565(255, 60, 50),
+};
+
+/* ── LINEART: 黑底白线 ─────────────────────────────────── */
+static const uint16_t PALETTE_LINEART[PAL_COUNT] = {
+    [PAL_BG]      = RGB565(0, 0, 0),
+    [PAL_BG_EDGE] = RGB565(0, 0, 0),
+    [PAL_SCLERA]  = RGB565(255, 255, 255),
+    [PAL_IRIS]    = RGB565(255, 255, 255),
+    [PAL_PUPIL]   = RGB565(255, 255, 255),
+    [PAL_BLUSH]   = RGB565(255, 255, 255),
+    [PAL_TEAR]    = RGB565(255, 255, 255),
+    [PAL_SHINE]   = RGB565(255, 255, 255),
+    [PAL_STAR]    = RGB565(255, 255, 255),
+    [PAL_SKIN]    = RGB565(0, 0, 0),
+    [PAL_BROW]    = RGB565(255, 255, 255),
+    [PAL_MOUTH]   = RGB565(255, 255, 255),
+    [PAL_TONGUE]  = RGB565(255, 255, 255),
 };
 
 #endif

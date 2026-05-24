@@ -42,10 +42,31 @@ static int   shake_frames = 0;
 static int   flip_z_down_frames = 0;
 static bool  flip_armed = true;
 
+// ── Twist 检测状态 (陀螺仪 Z 轴) ──
+static int   twist_frames = 0;
+static bool  twist_armed = true;
+static int   twist_cooldown = 0;
+
+// ── Tilt 检测状态 ──
+static int   tilt_frames = 0;
+static int   tilt_last_dir = -1;  // 0前 1左 2右 3后, -1=无
+static bool  tilt_armed = true;
+
+// 全局倾斜角度 (供 display 任务读取, 实现眼睛跟踪)
+float g_tilt_pitch = 0.0f;
+float g_tilt_roll  = 0.0f;
+
 static void process_imu(const imu_data_t *data) {
     float ax = data->accel[0], ay = data->accel[1], az = data->accel[2];
+    float gz = data->gyro[2];
     float mag = sqrtf(ax * ax + ay * ay + az * az);
     float dynamic_mag = fabsf(mag - 1.0f);
+
+    // ── 计算倾斜角度 (pitch/roll) ──
+    // pitch: 绕 X 轴旋转 (前倾为正)
+    // roll:  绕 Y 轴旋转 (右倾为正)
+    g_tilt_pitch = atan2f(ax, sqrtf(ay * ay + az * az));
+    g_tilt_roll  = atan2f(ay, az);
 
     // 存入滑动窗口
     accel_history[accel_history_idx][0] = ax;
@@ -82,13 +103,32 @@ static void process_imu(const imu_data_t *data) {
         }
     }
 
-    // ── 摇晃: 持续高幅值 > 300ms ──
+    // ── 摇晃: 持续高幅值 > 300ms, 含方向区分 ──
     if (dynamic_mag > SHAKE_G_THRESHOLD) {
         shake_frames++;
         if (shake_frames == 30) { // 30 帧 = 300ms
-            sensor_event_msg_t msg = { .type = EVT_SHAKE, .value = dynamic_mag };
+            // 回溯 30 帧计算 X/Y 轴方差, 判定方向
+            float sum_x = 0, sum_y = 0, sum_x2 = 0, sum_y2 = 0;
+            int n = (accel_history_count < 30) ? accel_history_count : 30;
+            for (int i = 0; i < n; i++) {
+                int idx = (accel_history_idx - 1 - i + 50) % 50;
+                float ax = accel_history[idx][0];
+                float ay = accel_history[idx][1];
+                sum_x += ax;
+                sum_y += ay;
+                sum_x2 += ax * ax;
+                sum_y2 += ay * ay;
+            }
+            float var_x = (sum_x2 - sum_x * sum_x / n) / n;
+            float var_y = (sum_y2 - sum_y * sum_y / n) / n;
+            float dir_val = 0.0f; // 默认全向
+            if (var_x > var_y * 2.5f)      dir_val = 1.0f; // 水平摇
+            else if (var_y > var_x * 2.5f) dir_val = 2.0f; // 垂直摇
+
+            sensor_event_msg_t msg = { .type = EVT_SHAKE, .value = dir_val };
             xQueueSend(event_queue, &msg, 0);
-            ESP_LOGI(TAG, "SHAKE detected, mag=%.2f", dynamic_mag);
+            ESP_LOGI(TAG, "SHAKE detected, dir=%.0f (var_x=%.4f var_y=%.4f)",
+                     dir_val, var_x, var_y);
         }
     } else {
         shake_frames = 0;
@@ -109,6 +149,54 @@ static void process_imu(const imu_data_t *data) {
         }
         flip_z_down_frames = 0;
     }
+
+    // ── 旋转检测 (Twist): 陀螺仪 Z 轴 > 100°/s 持续 > 100ms ──
+    if (twist_cooldown > 0) {
+        twist_cooldown--;
+    }
+    if (fabsf(gz) > 100.0f && twist_armed) {
+        twist_frames++;
+        if (twist_frames >= 10 && twist_cooldown == 0) { // 10 帧 = 100ms
+            float dir = (gz > 0) ? 1.0f : -1.0f;
+            sensor_event_msg_t msg = { .type = EVT_TWIST, .value = dir };
+            xQueueSend(event_queue, &msg, 0);
+            twist_armed = false;
+            twist_cooldown = 50; // 500ms 冷却
+            ESP_LOGI(TAG, "TWIST detected, dir=%.0f gz=%.1f", dir, gz);
+        }
+    } else {
+        twist_frames = 0;
+        if (fabsf(gz) < 30.0f && twist_cooldown == 0) {
+            twist_armed = true;
+        }
+    }
+
+    // ── 倾斜检测 (Tilt): pitch/roll > 25° 持续 > 250ms ──
+    float abs_pitch = fabsf(g_tilt_pitch);
+    float abs_roll  = fabsf(g_tilt_roll);
+    int current_dir = -1;
+
+    if (abs_pitch > 0.436f && abs_pitch > abs_roll) {       // > 25° = PI/7.2
+        current_dir = (g_tilt_pitch > 0) ? 0 : 3;            // 0=前倾, 3=后倾
+    } else if (abs_roll > 0.436f) {
+        current_dir = (g_tilt_roll > 0) ? 2 : 1;             // 2=右倾, 1=左倾
+    }
+
+    if (current_dir >= 0 && current_dir == tilt_last_dir && tilt_armed) {
+        tilt_frames++;
+        if (tilt_frames >= 25) { // 25 帧 = 250ms
+            sensor_event_msg_t msg = { .type = EVT_TILT, .value = (float)current_dir };
+            xQueueSend(event_queue, &msg, 0);
+            tilt_armed = false;
+            ESP_LOGI(TAG, "TILT detected, dir=%d", current_dir);
+        }
+    } else {
+        tilt_frames = 0;
+        if (current_dir < 0) {
+            tilt_armed = true; // 回到水平重新武装
+        }
+    }
+    tilt_last_dir = current_dir;
 }
 
 // ── 触摸检测 ─────────────────────────────────────────

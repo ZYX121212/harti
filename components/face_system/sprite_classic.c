@@ -84,12 +84,11 @@ static void draw_face(int y, const face_state_t *st, const sprite_set_t *sp, uin
     }
 }
 
-/* ── draw_eye: render one eye (migrated from expressive_eyes render_eye) ─ */
-static void draw_eye_impl(int y, const eye_params_t *ep,
+/* ── draw_eye: render one eye with sclera + layered shine ─ */
+static void draw_eye_impl(int y, const eye_params_t *ep, float eye_r,
                           int eye_cx, int eye_cy, const uint16_t *pal, uint16_t *buf) {
-    const float eye_r = 36.0f;
-    const float iris_r = 30.0f;
-    const float pupil_base_r = 13.0f;
+    const float iris_r = eye_r * 0.86f;
+    const float pupil_base_r = iris_r * 0.38f;
 
     float fy = y - eye_cy;
     if (fy < -eye_r - 2 || fy > eye_r + 2) return;
@@ -112,8 +111,13 @@ static void draw_eye_impl(int y, const eye_params_t *ep,
     float base_top = -eye_r * lid_open;
     float base_bot =  eye_r * lid_open;
 
-    float sh_cx = iris_cx - 6.0f, sh_cy = iris_cy - 7.0f;
-    float sh_r = 5.5f, sh_r_sq = sh_r * sh_r;
+    // Big catchlights make the tiny screen read warmer and cuter.
+    float sh_cx = iris_cx - 8.0f, sh_cy = iris_cy - 9.0f;
+    float sh_r = 7.5f, sh_r_sq = sh_r * sh_r;
+    float sh2_cx = iris_cx + 5.0f, sh2_cy = iris_cy - 4.0f;
+    float sh2_r = 4.2f, sh2_r_sq = sh2_r * sh2_r;
+    float sh3_cx = iris_cx - 2.0f, sh3_cy = iris_cy + 6.0f;
+    float sh3_r = 2.4f, sh3_r_sq = sh3_r * sh3_r;
 
     uint16_t iris_dark = blend_colors(pal[PAL_IRIS], pal[PAL_PUPIL], 0.65f);
 
@@ -123,7 +127,6 @@ static void draw_eye_impl(int y, const eye_params_t *ep,
         if (r_sq >= eye_r * eye_r) continue;
 
         float arc = 1.0f - (fx * fx) / (eye_r * eye_r);
-        // Inner/outer corner adjustments
         float inner_adj = ep->inner_corner.dy * 5.0f;
         float outer_adj = ep->outer_corner.dy * 5.0f;
         float corner_adj = inner_adj + (outer_adj - inner_adj) * ((fx + eye_r) / (2.0f * eye_r));
@@ -146,9 +149,10 @@ static void draw_eye_impl(int y, const eye_params_t *ep,
         bool is_edge = (edge_dist < 1.5f);
 
         if (is_edge) {
+            // Edge: anti-alias iris features against sclera
             float iris_d_sq = dist_sq(fx, fy, iris_cx, iris_cy);
             float sh_d_sq = dist_sq(fx, fy, sh_cx, sh_cy);
-            uint16_t inner;
+            uint16_t inner = pal[PAL_SCLERA]; // default to sclera
             if (sh_d_sq < sh_r_sq && iris_d_sq < iris_r_sq)
                 inner = blend_colors(pal[PAL_IRIS], pal[PAL_SHINE], 0.85f);
             else if (iris_d_sq < pupil_r_sq)
@@ -156,20 +160,30 @@ static void draw_eye_impl(int y, const eye_params_t *ep,
             else if (iris_d_sq < iris_r_sq) {
                 float grad_t = sqrtf(iris_d_sq) / iris_r;
                 inner = blend_colors(pal[PAL_IRIS], iris_dark, grad_t * grad_t);
-            } else {
-                continue;
             }
-            buf[x] = blend_colors(buf[x], inner, edge_dist / 1.5f);
+            buf[x] = blend_colors(buf[x], inner, edge_dist / 1.4f);
             continue;
         }
 
+        // Interior: fill sclera, then iris features on top
         float iris_d_sq = dist_sq(fx, fy, iris_cx, iris_cy);
         float pupil_d_sq = dist_sq(fx, fy, iris_cx + ep->iris_center.dx * 2.0f,
                                              iris_cy + ep->iris_center.dy * 2.0f);
-        float sh_d_sq = dist_sq(fx, fy, sh_cx, sh_cy);
+        float sh_d_sq  = dist_sq(fx, fy, sh_cx, sh_cy);
+        float sh2_d_sq = dist_sq(fx, fy, sh2_cx, sh2_cy);
+        float sh3_d_sq = dist_sq(fx, fy, sh3_cx, sh3_cy);
+
+        // Base: sclera (white of eye)
+        buf[x] = blend_colors(buf[x], pal[PAL_SCLERA], 0.92f);
 
         if (sh_d_sq < sh_r_sq && iris_d_sq < iris_r_sq) {
             float t = (1.0f - sh_d_sq / sh_r_sq) * ep->shine_intensity;
+            buf[x] = blend_colors(pal[PAL_IRIS], pal[PAL_SHINE], t);
+        } else if (sh2_d_sq < sh2_r_sq && iris_d_sq < iris_r_sq) {
+            float t = (1.0f - sh2_d_sq / sh2_r_sq) * ep->shine_intensity * 0.55f;
+            buf[x] = blend_colors(pal[PAL_IRIS], pal[PAL_SHINE], t);
+        } else if (sh3_d_sq < sh3_r_sq && iris_d_sq < iris_r_sq) {
+            float t = (1.0f - sh3_d_sq / sh3_r_sq) * ep->shine_intensity * 0.35f;
             buf[x] = blend_colors(pal[PAL_IRIS], pal[PAL_SHINE], t);
         } else if (iris_d_sq < iris_r_sq) {
             float iris_dist = sqrtf(iris_d_sq);
@@ -191,13 +205,13 @@ static void draw_eye_impl(int y, const eye_params_t *ep,
 static void draw_eye_left(int y, const face_state_t *st, const sprite_set_t *sp, uint16_t *buf) {
     int eye_cx = CENTER_X - (int)sp->eye_half_spacing;
     int eye_cy = CENTER_Y;
-    draw_eye_impl(y, &st->eye[0], eye_cx, eye_cy, sp->pal, buf);
+    draw_eye_impl(y, &st->eye[0], sp->eye_radius, eye_cx, eye_cy, sp->pal, buf);
 }
 
 static void draw_eye_right(int y, const face_state_t *st, const sprite_set_t *sp, uint16_t *buf) {
     int eye_cx = CENTER_X + (int)sp->eye_half_spacing;
     int eye_cy = CENTER_Y;
-    draw_eye_impl(y, &st->eye[1], eye_cx, eye_cy, sp->pal, buf);
+    draw_eye_impl(y, &st->eye[1], sp->eye_radius, eye_cx, eye_cy, sp->pal, buf);
 }
 
 /* ── draw_brow: arc from inner→arch→tail ─────────────────── */
@@ -252,14 +266,14 @@ static void draw_mouth(int y, const face_state_t *st, const sprite_set_t *sp, ui
     const mouth_params_t *mp = &st->mouth;
     int mouth_cy = CENTER_Y + (int)sp->mouth_y_center;
 
-    float half_width = 25.0f;
+    float half_width = 30.0f;
     int x_start = CENTER_X - (int)half_width - 3;
     int x_end   = CENTER_X + (int)half_width + 3;
     if (x_start < 0) x_start = 0;
     if (x_end >= SCREEN_W) x_end = SCREEN_W - 1;
 
-    float lcx = CENTER_X + mp->left_corner.dx * half_width;
-    float rcx = CENTER_X + mp->right_corner.dx * half_width;
+    float lcx = CENTER_X - half_width + mp->left_corner.dx * 14.0f;
+    float rcx = CENTER_X + half_width + mp->right_corner.dx * 14.0f;
     float lcy = mouth_cy + mp->left_corner.dy * 12.0f;
     float rcy = mouth_cy + mp->right_corner.dy * 12.0f;
     float uly = mouth_cy + mp->upper_lip_mid.dy * 15.0f;
@@ -272,7 +286,8 @@ static void draw_mouth(int y, const face_state_t *st, const sprite_set_t *sp, ui
         if (t < 0.0f || t > 1.0f) continue;
 
         float corner_y = (1-t) * lcy + t * rcy;
-        float upper_y = (1-t)*(1-t)*corner_y + 2*(1-t)*t*uly + t*t*corner_y;
+        float smile_lift = sinf(t * 3.14159f) * 3.0f;
+        float upper_y = (1-t)*(1-t)*corner_y + 2*(1-t)*t*(uly - smile_lift) + t*t*corner_y;
         /* cupid's bow: dip at center of upper lip */
         if (mp->cupid_depth > 0.01f) {
             float center_dist = 1.0f - fabsf(t - 0.5f) * 2.0f;
@@ -344,9 +359,9 @@ static void draw_blush(int y, const face_state_t *st, const sprite_set_t *sp, ui
     const uint16_t *pal = sp->pal;
 
     int blush_cy = CENTER_Y + (int)sp->blush_y_offset;
-    int left_cx  = CENTER_X - 60;
-    int right_cx = CENTER_X + 60;
-    float blush_r = 24.0f;
+    int left_cx  = CENTER_X - 64;
+    int right_cx = CENTER_X + 64;
+    float blush_r = 26.0f;
     float r_sq = blush_r * blush_r;
 
     float dy = y - blush_cy;
@@ -364,6 +379,12 @@ static void draw_blush(int y, const face_state_t *st, const sprite_set_t *sp, ui
             float d = (d_left < d_right) ? d_left : d_right;
             float t = (1.0f - d / r_sq) * level * 0.7f;
             buf[x] = blend_colors(buf[x], pal[PAL_BLUSH], t);
+        }
+
+        bool left_dash = (x >= left_cx - 12 && x <= left_cx + 10 && fabsf((float)y - (blush_cy + (x - left_cx) * 0.18f)) < 1.2f);
+        bool right_dash = (x >= right_cx - 10 && x <= right_cx + 12 && fabsf((float)y - (blush_cy - (x - right_cx) * 0.18f)) < 1.2f);
+        if (left_dash || right_dash) {
+            buf[x] = blend_colors(buf[x], pal[PAL_BLUSH], level * 0.75f);
         }
     }
 }
@@ -453,9 +474,9 @@ static void draw_decor_overlay(int y, const face_state_t *st,
 
 const sprite_set_t SPRITE_CLASSIC = {
     .name = "classic",
-    .eye_radius = 36.0f,
-    .eye_half_spacing = 26.0f,
-    .mouth_y_center = 50.0f,
+    .eye_radius = 35.0f,
+    .eye_half_spacing = 38.0f,
+    .mouth_y_center = 47.0f,
     .brow_y_offset = -38.0f,
     .blush_y_offset = 35.0f,
     .draw_face = draw_face,
@@ -466,5 +487,5 @@ const sprite_set_t SPRITE_CLASSIC = {
     .draw_brow_left = draw_brow_left,
     .draw_brow_right = draw_brow_right,
     .draw_decor_overlay = draw_decor_overlay,
-    .pal = PALETTE_BLACK,
+    .pal = PALETTE_WHITE,
 };

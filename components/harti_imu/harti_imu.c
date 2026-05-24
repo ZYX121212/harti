@@ -16,6 +16,7 @@ static const char *TAG = "harti_imu";
 #define REG_ACCEL_XOUT_H      0x3B
 
 #define MPU6050_WHO_AM_I_VAL  0x68
+#define MPU6500_WHO_AM_I_VAL  0x70
 
 // LSB per g for ±8g accel range (AFS_SEL=2)
 #define ACCEL_LSB_PER_G       4096.0f
@@ -32,26 +33,40 @@ static esp_err_t write_reg(uint8_t reg, uint8_t value) {
 
 esp_err_t imu_init(i2c_master_bus_handle_t bus) {
     if (imu_initialized) return ESP_OK;
-    ESP_RETURN_ON_ERROR(
-        i2c_master_bus_add_device(bus, &(i2c_device_config_t) {
-            .dev_addr_length = I2C_ADDR_BIT_LEN_7,
-            .device_address = MPU6050_ADDR,
-            .scl_speed_hz = 400000,
-        }, &dev_handle),
-        TAG, "failed to add I2C device"
-    );
 
-    // Verify WHO_AM_I
-    uint8_t who;
-    ESP_RETURN_ON_ERROR(
-        i2c_master_transmit_receive(dev_handle, (uint8_t[]){ REG_WHO_AM_I }, 1, &who, 1, pdMS_TO_TICKS(100)),
-        TAG, "WHO_AM_I read failed"
-    );
-    if (who != MPU6050_WHO_AM_I_VAL) {
-        ESP_LOGE(TAG, "unexpected WHO_AM_I: 0x%02x (expected 0x%02x)", who, MPU6050_WHO_AM_I_VAL);
-        return ESP_FAIL;
+    // 自动探测 I2C 地址: 先试 0x68 (AD0=GND), 再试 0x69 (AD0=VCC)
+    uint8_t addrs[] = { 0x68, 0x69 };
+    uint8_t who = 0;
+    esp_err_t err = ESP_FAIL;
+
+    for (int i = 0; i < sizeof(addrs); i++) {
+        err = i2c_master_bus_add_device(bus, &(i2c_device_config_t) {
+            .dev_addr_length = I2C_ADDR_BIT_LEN_7,
+            .device_address = addrs[i],
+            .scl_speed_hz = 400000,
+        }, &dev_handle);
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "failed to add device at 0x%02x", addrs[i]);
+            continue;
+        }
+
+        err = i2c_master_transmit_receive(dev_handle, (uint8_t[]){ REG_WHO_AM_I }, 1, &who, 1, pdMS_TO_TICKS(100));
+        if (err == ESP_OK && (who == MPU6050_WHO_AM_I_VAL || who == MPU6500_WHO_AM_I_VAL)) {
+            const char *model = (who == MPU6500_WHO_AM_I_VAL) ? "MPU6500" : "MPU6050";
+            ESP_LOGI(TAG, "%s found at 0x%02x, WHO_AM_I=0x%02x", model, addrs[i], who);
+            break;
+        }
+
+        ESP_LOGW(TAG, "no MPU6050/MPU6500 at 0x%02x (err=%d who=0x%02x)", addrs[i], err, who);
+        i2c_master_bus_rm_device(dev_handle);
+        dev_handle = NULL;
+        err = ESP_ERR_NOT_FOUND;
     }
-    ESP_LOGI(TAG, "WHO_AM_I: 0x%02x OK", who);
+
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "MPU6050/MPU6500 not found on any I2C address");
+        return err;
+    }
 
     // Wake up (clear sleep bit)
     ESP_RETURN_ON_ERROR(write_reg(REG_PWR_MGMT_1, 0x00), TAG, "PWR_MGMT_1 write failed");
