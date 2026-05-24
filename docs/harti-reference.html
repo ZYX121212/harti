@@ -1,0 +1,1340 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Harti — 技术参考手册</title>
+<style>
+  :root {
+    --bg: #0d1117; --bg2: #161b22; --bg3: #21262d;
+    --border: #30363d; --fg: #c9d1d9; --fg2: #8b949e;
+    --accent: #58a6ff; --accent2: #f78166; --green: #3fb950;
+    --yellow: #d2991d; --pink: #db61a2; --cyan: #39c5cf;
+    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--fg);
+    font-family: var(--font); line-height: 1.7;
+    max-width: 1100px; margin: 0 auto; padding: 2rem;
+  }
+  h1 { font-size: 2.2rem; border-bottom: 2px solid var(--accent); padding-bottom: 0.5rem; margin: 2rem 0 1rem; color: #fff; }
+  h2 { font-size: 1.6rem; border-bottom: 1px solid var(--border); padding-bottom: 0.4rem; margin: 2rem 0 0.8rem; color: var(--accent); }
+  h3 { font-size: 1.2rem; margin: 1.4rem 0 0.6rem; color: var(--cyan); }
+  h4 { font-size: 1rem; margin: 1rem 0 0.4rem; color: var(--pink); }
+  p, li { margin: 0.4rem 0; }
+  a { color: var(--accent); text-decoration: none; } a:hover { text-decoration: underline; }
+  code {
+    font-family: var(--mono); font-size: 0.9em;
+    background: var(--bg3); padding: 0.15em 0.4em; border-radius: 4px; color: var(--pink);
+  }
+  pre {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 6px;
+    padding: 1rem; overflow-x: auto; font-size: 0.85rem; line-height: 1.5;
+  }
+  pre code { background: none; padding: 0; color: var(--fg); }
+  table {
+    width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.9rem;
+  }
+  th, td {
+    border: 1px solid var(--border); padding: 0.55rem 0.8rem;
+    text-align: left; vertical-align: top;
+  }
+  th { background: var(--bg3); color: var(--accent); font-weight: 600; }
+  tr:nth-child(even) td { background: var(--bg2); }
+  ul, ol { margin: 0.5rem 0 0.5rem 1.5rem; }
+  li { margin: 0.3rem 0; }
+  .toc { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 1.2rem 1.5rem; margin: 1rem 0 2rem; }
+  .toc h3 { margin-top: 0; color: var(--accent); }
+  .toc ol { margin-left: 1.2rem; }
+  .toc a { font-family: var(--mono); font-size: 0.9rem; }
+  .badge {
+    display: inline-block; padding: 0.15em 0.6em; border-radius: 12px;
+    font-size: 0.78rem; font-weight: 600; margin-right: 0.4rem;
+  }
+  .badge-c    { background: #1f3a2f; color: #3fb950; }
+  .badge-hdr  { background: #3a1f2f; color: #db61a2; }
+  .badge-pin  { background: #3a2f1f; color: #d2991d; }
+  .badge-chip { background: #1f3a5f; color: #58a6ff; }
+  .warn {
+    background: #3a2f1f; border: 1px solid #d2991d; border-left: 4px solid #d2991d;
+    padding: 0.8rem 1rem; border-radius: 4px; margin: 1rem 0; color: #f0c040; font-size: 0.9rem;
+  }
+  .note {
+    background: #1f2a3a; border: 1px solid #58a6ff; border-left: 4px solid #58a6ff;
+    padding: 0.8rem 1rem; border-radius: 4px; margin: 1rem 0; color: #a0c8f0; font-size: 0.9rem;
+  }
+  .diagram {
+    background: var(--bg2); border: 1px solid var(--border); border-radius: 6px;
+    padding: 1rem 1.5rem; margin: 1rem 0; font-family: var(--mono); font-size: 0.82rem;
+    line-height: 1.4; white-space: pre; overflow-x: auto;
+  }
+  hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+  .hero { text-align: center; margin-bottom: 2rem; }
+  .hero h1 { font-size: 2.8rem; border: none; margin-bottom: 0.3rem; }
+  .hero p { color: var(--fg2); font-size: 1.1rem; }
+  .step { margin: 0.8rem 0 0.8rem 1.5rem; }
+  .step li { margin: 0.5rem 0; }
+  .filepath { color: var(--fg2); font-size: 0.85rem; }
+  @media (max-width: 768px) {
+    body { padding: 1rem; }
+    table { font-size: 0.78rem; }
+    th, td { padding: 0.35rem 0.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <h1>Harti</h1>
+  <p>桌面互动宠物 — ESP32-S3 + GC9A01 240×240 圆形屏</p>
+  <p style="font-size:0.85rem;color:var(--fg2);">技术参考手册 &middot; v2.1 &middot; 2026-05</p>
+</div>
+
+<!-- ══════════════════════════════════════════════ TOC ═════ -->
+<div class="toc">
+<h3>目录</h3>
+<ol>
+  <li><a href="#sec-overview">项目总览</a></li>
+  <li><a href="#sec-structure">目录结构与分层</a></li>
+  <li><a href="#sec-architecture">架构与数据流</a></li>
+  <li><a href="#sec-files">逐文件详解</a></li>
+  <li><a href="#sec-config">配置参考 (harti_config.h)</a></li>
+  <li><a href="#sec-face">face_system 面部引擎</a></li>
+  <li><a href="#sec-face-draw">绘制 Face 的方法详解</a></li>
+  <li><a href="#sec-sensors">传感器事件系统</a></li>
+  <li><a href="#sec-behavior">行为状态机</a></li>
+  <li><a href="#sec-props">道具系统 (face_prop)</a></li>
+  <li><a href="#sec-common">几何绘制原语 (face_common.h)</a></li>
+  <li><a href="#sec-modify">修改指南</a></li>
+  <li><a href="#sec-build">编译 &amp; 烧录</a></li>
+  <li><a href="#sec-debug">问题排查</a></li>
+</ol>
+</div>
+
+<!-- ═══════════════════════════════════════════ 1. 项目总览 ═══════ -->
+<h2 id="sec-overview">1. 项目总览</h2>
+
+<p><strong>Harti</strong> 是一台桌面互动电子宠物。一只大眼睛显示在圆形屏上，会随你的动作做出表情变化。核心交互：</p>
+<ul>
+  <li><strong>摇晃</strong> Harti — 它会惊讶或开心</li>
+  <li><strong>轻拍</strong> 桌面 — 它会抬头看你</li>
+  <li><strong>翻转</strong> Harti — 它会惊恐</li>
+  <li><strong>捂热</strong> 机身 — 它的脸会变暖</li>
+  <li><strong>碰一碰</strong> 另一只 Harti — 两只建立关系（BLE，待实现）</li>
+  <li><strong>按 BOOT 键</strong> — 切换风格（6 种画风）</li>
+</ul>
+
+<table>
+<tr><th>指标</th><th>值</th></tr>
+<tr><td>MCU</td><td>ESP32-S3 (240MHz, 双核, 8MB PSRAM, 16MB Flash)</td></tr>
+<tr><td>屏幕</td><td>GC9A01 240×240 圆形 IPS, SPI 3-wire @ 10MHz</td></tr>
+<tr><td>IMU</td><td>MPU6050 I2C @ 0x68, ±8g / ±500dps, 100Hz</td></tr>
+<tr><td>温度</td><td>NTC 10kΩ B=3950, ADC1_CH0 (GPIO0)</td></tr>
+<tr><td>触摸</td><td>ESP32-S3 内置电容触摸 TOUCH0 (GPIO1)</td></tr>
+<tr><td>框架</td><td>ESP-IDF v6.0.1 + LVGL 8.3 + FreeRTOS</td></tr>
+<tr><td>语言标准</td><td>C23 (gnu23), CMake + Ninja</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════ 2. 目录结构 ═══════ -->
+<h2 id="sec-structure">2. 目录结构与分层</h2>
+
+<h3>2.1 完整目录树</h3>
+<pre class="diagram">harti/
+├── main/                              <span class="badge badge-c">应用编排层</span>
+│   ├── CMakeLists.txt
+│   ├── main.c                         # app_main 入口，创建 FreeRTOS 任务
+│   ├── harti_config.h                 # 统一配置（常量 / 阈值 / emotion_t）
+│   ├── app_sensors.c/h                # 传感器事件检测（IMU + 温度）
+│   ├── app_behavior.c/h               # 行为状态机 + 关系管理
+│   ├── app_input.c/h                  # 物理输入（BOOT 按键 + sprite 轮换）
+│   └── app_ble.c/h                    # BLE 碰一碰通信（stub）
+│
+├── components/
+│   ├── face_system/                   <span class="badge badge-hdr">面部渲染引擎</span>
+│   │   ├── CMakeLists.txt
+│   │   ├── face_api.h                 # 公共 API（应用层唯一入口）
+│   │   ├── face_model.h               # 数据模型类型定义
+│   │   ├── face_model.c               # 13 种表情预设数据
+│   │   ├── face_animator.h/c          # LVGL tween 动画引擎
+│   │   ├── face_renderer.h/c          # 9-pass 扫描线渲染器
+│   │   ├── face_palette.h/c           # 10 套 RGB565 调色板
+│   │   ├── face_micro.h/c             # 微动画引擎（眨眼/扫视/呼吸/倾斜跟随）
+│   │   ├── face_prop.h/c              # 道具系统（爱心/茶杯/手/星/汗滴漂浮道具）
+│   │   ├── face_common.h             # 27 个绘制原语（几何形状/曲线/抖动/混合）
+│   │   └── sprites/                   # 9 套 sprite 资产
+│   │       ├── sprite_registry.h/c    # ★ 唯一真相源：管理所有 sprite
+│   │       ├── sprite_vector.c/h      # 矢量风 ⭐默认
+│   │       ├── sprite_lineart.c/h     # 线稿风
+│   │       ├── sprite_classic.c/h     # 经典风
+│   │       ├── sprite_cat.c/h         # 猫猫风
+│   │       ├── sprite_pixel.c/h       # 像素风
+│   │       ├── sprite_robot.c/h       # 机器人风
+│   │       ├── sprite_nova.c/h        # NOVA 风
+│   │       ├── sprite_pig.c/h         # 小猪风
+│   │       └── sprite_chibi.c/h       # Chibi 手绘风
+│   │
+│   ├── gc9a01/                        <span class="badge badge-chip">LCD 驱动</span>
+│   │   └── gc9a01.h/c                 # GC9A01 SPI 初始化 + 数据传输
+│   ├── harti_imu/                     <span class="badge badge-chip">IMU 驱动</span>
+│   │   └── harti_imu.h/c              # MPU6050 I2C 读写
+│   └── harti_temp/                    <span class="badge badge-chip">温度驱动</span>
+│       └── harti_temp.h/c             # NTC + ADC 温度读取
+│
+└── docs/
+    ├── harti-reference.html           # 本文档
+    ├── ARCHITECTURE.md                # 架构设计
+    ├── PRODUCT.md                     # 产品定义
+    ├── INTERACTION.md                 # 交互设计
+    ├── GROWTH.md                      # 增长策略
+    └── resources.md                   # GPIO 资源映射</pre>
+
+<h3>2.2 分层原则</h3>
+
+<pre class="diagram">┌──────────────────────────────────────────────┐
+│  main/    应用编排层                          │
+│           只管"做什么"——创建任务、连接模块       │
+│           不直接引入 sprite 头文件              │
+│           通过 harti_config.h 共享常量          │
+├──────────────────────────────────────────────┤
+│  face_api.h    API 边界                       │
+│           应用层只通过这个头文件访问面部系统      │
+│           不暴露 animator/renderer 内部细节     │
+├──────────────────────────────────────────────┤
+│  face_system/   渲染引擎                      │
+│           管"怎么做"——动画/渲染/调色            │
+│           sprite_registry 管理所有 sprite      │
+├──────────────────────────────────────────────┤
+│  gc9a01 / harti_imu / harti_temp   驱动层     │
+│           纯硬件抽象——SPI/I2C/ADC             │
+│           不依赖应用层任何东西                  │
+└──────────────────────────────────────────────┘</pre>
+
+<h3>2.3 关键依赖规则</h3>
+<ul>
+  <li><strong>应用层不直接 include sprite 头文件</strong>：通过 <code>sprite_registry.h</code> 访问</li>
+  <li><strong>face_api.h 是 face_system 的唯一公共入口</strong>：不直接调用 <code>animator_*</code> / <code>renderer_*</code></li>
+  <li><strong>harti_config.h 集中管理常量</strong>：不在各模块重复定义</li>
+  <li><strong>加新 sprite 只改 1 个文件</strong>：<code>sprite_registry.c</code></li>
+</ul>
+
+<!-- ═══════════════════════════════════════════ 3. 架构与数据流 ═══════ -->
+<h2 id="sec-architecture">3. 架构与数据流</h2>
+
+<h3>3.1 FreeRTOS 任务一览</h3>
+<table>
+<tr><th>任务名</th><th>优先级</th><th>栈</th><th>周期</th><th>职责</th><th>定义位置</th></tr>
+<tr><td><code>display</code></td><td>5 (最高)</td><td>4KB</td><td>50ms (20fps)</td><td>动画 tick + 渲染帧</td><td>main.c</td></tr>
+<tr><td><code>sensor</code></td><td>3</td><td>2KB</td><td>10ms (100Hz)</td><td>I2C 读 IMU + ADC 温度</td><td>app_sensors.c</td></tr>
+<tr><td><code>behavior</code></td><td>3</td><td>2KB</td><td>事件驱动 (1s 超时)</td><td>状态机决策</td><td>app_behavior.c</td></tr>
+<tr><td><code>input</code></td><td>3</td><td>2KB</td><td>30ms 轮询</td><td>BOOT 按键 + sprite 切换</td><td>app_input.c</td></tr>
+<tr><td><code>ble</code></td><td>1</td><td>3KB</td><td>5s heartbeat</td><td>BLE stub</td><td>app_ble.c</td></tr>
+</table>
+
+<h3>3.2 运行时数据流</h3>
+<pre class="diagram">                    MPU6050 (I2C)              NTC (ADC)
+                         │                        │
+                         ▼ 每 10ms                ▼ 每 1s
+                   imu_read()              temp_read_celsius()
+                         │                        │
+                         ▼                        ▼
+                   process_imu()            process_temp()
+                   ├─ EVT_SHAKE             ├─ EVT_WARM_UP
+                   ├─ EVT_TAP               └─ EVT_COLD_DOWN
+                   ├─ EVT_FLIP
+                   ├─ EVT_TWIST
+                   └─ EVT_TILT
+                         │                        │
+                         └─────────┬──────────────┘
+                                   ▼
+                         sensor_queue (FreeRTOS Queue, 10 slots)
+                                   │
+                                   ▼
+                         behavior_task
+                         ├─ on_event(msg)
+                         │   └─ face_set_expression(id)
+                         └─ check_idle() (1s 超时)
+                             ├─ SURPRISED → CONFUSED → IDLE
+                             └─ IDLE → BORED → SLEEPY
+                                   │
+                                   ▼
+                         display_task (每 50ms)
+                         ├─ face_set_tilt(pitch, roll) ← IMU 倾斜传入
+                         ├─ face_animator_tick()      ← LVGL lerp 驱动
+                         └─ face_render_frame()       ← 扫描线合成
+                             ├─ copy animator state
+                             ├─ micro_animator_apply() ← 眨眼/扫视/呼吸/倾斜
+                             ├─ prop_animator_apply()  ← 道具动画
+                             └─ gc9a01_send_pixels()   ← SPI DMA 推屏</pre>
+
+<h3>3.3 依赖图</h3>
+<pre class="diagram">app_behavior ──→ face_api.h ──→ animator / renderer / micro / prop
+                                  (不暴露 sprite 细节)
+
+app_input ──→ sprite_registry.h ──→ 各 sprite (9 种)
+              (只 registry 知道全部 sprite)
+
+main.c ──→ face_api.h + harti_config.h
+           (直接调用，无中间层)</pre>
+
+<!-- ═══════════════════════════════════════════ 4. 逐文件详解 ═══════ -->
+<h2 id="sec-files">4. 逐文件详解</h2>
+
+<h3>4.1 main.c — 入口</h3>
+<p><span class="filepath">位置：main/main.c</span></p>
+<p>整个固件的启动入口。职责：</p>
+<ol>
+  <li><code>lv_init()</code> + 1ms tick 定时器 — 供 face_animator 使用</li>
+  <li><code>gc9a01_init()</code> — SPI 初始化 + 屏幕复位序列</li>
+  <li><code>face_init()</code> — 初始化 animator + renderer + micro + prop，设默认 sprite</li>
+  <li><code>face_render_frame()</code> — 立即渲染一帧（屏幕先亮）</li>
+  <li>创建 5 个 FreeRTOS 任务（display 最先创建，优先级最高）</li>
+</ol>
+<p><strong>启动顺序不能乱</strong>：LVGL → 屏幕 → 渲染第一帧 → 创建任务。否则开机黑屏。</p>
+
+<h3>4.2 harti_config.h — 配置中心</h3>
+<p><span class="filepath">位置：main/harti_config.h</span></p>
+<p>所有可调参数集中在这里。包含：</p>
+<ul>
+  <li><code>emotion_t</code> 枚举（与 face_model 的 expression_id_t 值一一对应）</li>
+  <li>5 个 task 的栈大小和优先级</li>
+  <li>IMU 阈值（摇晃、轻拍、翻转、旋转、倾斜）</li>
+  <li>温度阈值（捂热、低温）</li>
+  <li>按键消抖参数</li>
+  <li>行为状态机超时参数</li>
+  <li>显示帧率</li>
+</ul>
+<p>修改任何参数只需改这个文件，重新编译即可。</p>
+
+<h3>4.3 app_sensors.c/h — 传感器事件检测</h3>
+<p><span class="filepath">位置：main/app_sensors.c + app_sensors.h</span></p>
+<p>启动 I2C 总线和 IMU，创建 <code>sensor_task</code>（100Hz）。核心函数：</p>
+<table>
+<tr><th>函数</th><th>作用</th></tr>
+<tr><td><code>sensors_start()</code></td><td>创建 event_queue + sensor_task，返回 queue 句柄</td></tr>
+<tr><td><code>process_imu()</code></td><td>处理一帧 IMU 数据 → 检测 6 种事件 → 发到 queue</td></tr>
+<tr><td><code>process_temp()</code></td><td>每 1s 读一次温度 → 检测捂热/低温 → 发到 queue</td></tr>
+</table>
+<p>sensor_task 每 10ms 执行一次：读 IMU → process_imu → process_temp（后者内部节流到 1Hz）。</p>
+
+<h3>4.4 app_behavior.c/h — 行为状态机</h3>
+<p><span class="filepath">位置：main/app_behavior.c + app_behavior.h</span></p>
+<p>创建 <code>behavior_task</code>，从 sensor_queue 读取事件。核心逻辑：</p>
+<ul>
+  <li><strong>on_event()</strong>：根据事件类型和 value 决定 transition_to 哪个状态</li>
+  <li><strong>check_idle()</strong>：每秒检查一次，超时自动转 BORED → SLEEPY</li>
+  <li><strong>唤醒机制</strong>：BORED/SLEEPY 状态下任何事件先回 IDLE</li>
+  <li>内部状态 <code>behavior_state_t</code>（IDLE/HAPPY/SURPRISED/...）和对外表情 <code>emotion_t</code> 分离</li>
+</ul>
+
+<h3>4.5 app_input.c/h — 物理输入</h3>
+<p><span class="filepath">位置：main/app_input.c + app_input.h</span></p>
+<p>创建 <code>input_task</code>，每 30ms 轮询 BOOT 按键（GPIO0）。按下后切换到下一个 sprite：</p>
+<pre class="diagram">VECTOR → LINEART → CLASSIC → CAT → PIXEL → ROBOT → NOVA → PIG → CHIBI → VECTOR → ...</pre>
+<p>使用双重检测（GPIO 数字电平 + ADC 值）防止误触。sprite 列表通过 <code>sprite_registry</code> 获取，不直接引用各 sprite 头文件。</p>
+
+<h3>4.6 app_ble.c/h — BLE 通信</h3>
+<p><span class="filepath">位置：main/app_ble.c + app_ble.h</span></p>
+<p>当前为 stub 实现：只创建 ble_task，每 5s 打印心跳日志。完整 BLE 广播/扫描/配对功能待实现。</p>
+
+<h3>4.7 face_system/ — 面部渲染引擎</h3>
+<p>见 <a href="#sec-face">第 6 节</a> 详细拆解。</p>
+
+<!-- ═══════════════════════════════════════════ 5. 配置参考 ═══════ -->
+<h2 id="sec-config">5. 配置参考 (harti_config.h)</h2>
+
+<p>所有配置常量定义在 <code>main/harti_config.h</code>。下面是每个参数的含义和调参指南：</p>
+
+<h3>5.1 任务配置</h3>
+<table>
+<tr><th>常量</th><th>默认值</th><th>含义</th><th>调大影响</th></tr>
+<tr><td><code>DISPLAY_TASK_STACK</code></td><td>4096</td><td>display 任务栈 (字节)</td><td>占用更多 DRAM</td></tr>
+<tr><td><code>DISPLAY_TASK_PRIO</code></td><td>5</td><td>display 任务优先级</td><td>抢占其他任务更频繁</td></tr>
+<tr><td><code>SENSOR_TASK_STACK</code></td><td>2048</td><td>sensor 任务栈</td><td>—</td></tr>
+<tr><td><code>SENSOR_TASK_PRIO</code></td><td>3</td><td>sensor 任务优先级</td><td>—</td></tr>
+<tr><td><code>BEHAVIOR_TASK_STACK</code></td><td>2048</td><td>behavior 任务栈</td><td>—</td></tr>
+<tr><td><code>BEHAVIOR_TASK_PRIO</code></td><td>3</td><td>behavior 任务优先级</td><td>—</td></tr>
+<tr><td><code>BUTTON_TASK_STACK</code></td><td>2048</td><td>input 任务栈</td><td>—</td></tr>
+<tr><td><code>BLE_TASK_STACK</code></td><td>3072</td><td>BLE 任务栈</td><td>—</td></tr>
+</table>
+
+<h3>5.2 IMU 阈值</h3>
+<table>
+<tr><th>常量</th><th>默认值</th><th>触发条件</th><th>调高/调低影响</th></tr>
+<tr><td><code>SHAKE_G_THRESHOLD</code></td><td>2.5f</td><td>加速度幅值 &gt; 此值 300ms → EVT_SHAKE</td><td>↑需要更大力摇 ↓更灵敏</td></tr>
+<tr><td><code>TAP_G_THRESHOLD</code></td><td>1.5f</td><td>加速度幅值 &gt; 此值 ≤50ms → EVT_TAP</td><td>↑需要更重拍 ↓轻触也触发</td></tr>
+<tr><td><code>FLIP_Z_THRESH</code></td><td>-0.7f</td><td>Z 轴 &lt; 此值 500ms → EVT_FLIP</td><td>↑需要更彻底翻转</td></tr>
+<tr><td><code>TWIST_GYRO_THRESH</code></td><td>100.0f</td><td>陀螺 Z 轴 &gt; 此值 100ms → EVT_TWIST</td><td>↑需要更快旋转</td></tr>
+<tr><td><code>TILT_ANGLE_THRESH</code></td><td>0.436f</td><td>pitch/roll &gt; 25° 250ms → EVT_TILT</td><td>↑需要更大倾斜</td></tr>
+</table>
+
+<h3>5.3 温度阈值</h3>
+<table>
+<tr><th>常量</th><th>默认值</th><th>触发条件</th></tr>
+<tr><td><code>WARM_UP_DELTA_PER_SEC</code></td><td>0.4f</td><td>每秒升温 &gt; 0.4°C</td></tr>
+<tr><td><code>WARM_UP_DURATION_SEC</code></td><td>5</td><td>连续 5 秒</td></tr>
+<tr><td><code>COLD_TEMP_THRESH</code></td><td>15.0f</td><td>温度 &lt; 15°C</td></tr>
+</table>
+
+<h3>5.4 行为超时</h3>
+<table>
+<tr><th>常量</th><th>默认值</th><th>含义</th></tr>
+<tr><td><code>IDLE_BORED_SEC</code></td><td>10</td><td>IDLE 状态下 10s 无互动 → BORED</td></tr>
+<tr><td><code>IDLE_SLEEPY_SEC</code></td><td>30</td><td>30s 无互动 → SLEEPY</td></tr>
+<tr><td><code>SURPRISE_TIMEOUT_SEC</code></td><td>3</td><td>SURPRISED 后 3s 无新互动 → CONFUSED</td></tr>
+<tr><td><code>CONFUSED_TIMEOUT_SEC</code></td><td>5</td><td>CONFUSED 后 5s → IDLE</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════ 6. face_system ═══════ -->
+<h2 id="sec-face">6. face_system — 面部渲染引擎</h2>
+
+<h3>6.1 五层架构</h3>
+<pre class="diagram">┌──────────────────────────────────────────────────┐
+│  face_api.h        公共 API（static inline 封装）  │
+│  ├─ face_init()          初始化 + 设默认 sprite     │
+│  ├─ face_set_expression()  切换表情（带动画）        │
+│  ├─ face_set_sprite()      切换 sprite 风格         │
+│  ├─ face_set_tilt()        传入 IMU 倾斜角度          │
+│  ├─ face_prop_show/hide()  控制道具显示/隐藏          │
+│  ├─ face_animator_tick()   更新动画（每帧调用）      │
+│  └─ face_render_frame()    渲染一帧（每帧调用）      │
+├──────────────────────────────────────────────────┤
+│  face_micro.h/c     微动画引擎                      │
+│  ├─ 眨眼 + 双重眨眼（per-eye 状态机 + 自动 wink）    │
+│  ├─ 视线游走（4 相状态机：凝视/转移/扫视/回中）       │
+│  ├─ 呼吸（sin 波缩放 face.squash/stretch）          │
+│  └─ 倾斜跟随（IMU pitch/roll → iris 偏移）          │
+├──────────────────────────────────────────────────┤
+│  face_prop.h/c      道具系统                        │
+│  ├─ 6 种道具：爱心/茶杯/手/星/汗滴/闪光              │
+│  ├─ 浮动动画（sin 波偏移 + 缓入缓出）                │
+│  └─ 每个 sprite 可选支持 draw_props（第 9 pass）     │
+├──────────────────────────────────────────────────┤
+│  face_model.h/c     数据模型 + 表情预设             │
+│  ├─ face_state_t     7 组件参数（脸/眉×2/眼×2/嘴/装饰）│
+│  ├─ expression_def_t 表情定义（target + timing）     │
+│  └─ 13 种预设（NEUTRAL ~ HEART_EYES）               │
+├──────────────────────────────────────────────────┤
+│  face_animator.h/c  LVGL tween 动画引擎            │
+│  ├─ 每组件独立 lv_anim_t（可独立时长/延迟/曲线）    │
+│  ├─ 5 种缓动路径（linear/ease-in/out/in-out/overshoot）│
+│  └─ 即时 set / 逐帧 lerp                           │
+├──────────────────────────────────────────────────┤
+│  face_renderer.h/c  扫描线渲染器                    │
+│  ├─ 240 字节行缓冲 line_buf（非全帧缓冲！）          │
+│  ├─ 9-pass z-order 逐行合成（含 draw_props）        │
+│  └─ gc9a01_send_pixels() 逐行 SPI 推屏             │
+└──────────────────────────────────────────────────┘</pre>
+
+<h3>6.2 面部组件（7 个）</h3>
+<table>
+<tr><th>组件</th><th>枚举值</th><th>结构体</th><th>关键字段</th></tr>
+<tr><td>脸型</td><td><code>COMPONENT_FACE</code></td><td><code>face_params_t</code></td><td>roundness（圆润度 0-1）</td></tr>
+<tr><td>左/右眉</td><td><code>COMPONENT_BROW_LEFT/RIGHT</code></td><td><code>brow_params_t</code></td><td>inner, arch, tail（三关键点）+ thickness, taper</td></tr>
+<tr><td>左/右眼</td><td><code>COMPONENT_EYE_LEFT/RIGHT</code></td><td><code>eye_params_t</code></td><td>四个眼角, two lids, iris_center, pupil_scale, shine, eyelash</td></tr>
+<tr><td>嘴巴</td><td><code>COMPONENT_MOUTH</code></td><td><code>mouth_params_t</code></td><td>嘴角/唇中四关键点, openness, cupid_depth, tooth_show</td></tr>
+<tr><td>装饰</td><td><code>COMPONENT_DECOR</code></td><td><code>decor_params_t</code></td><td>blush, tears, stars, sweat, sparkle（均为 0-1 强度）</td></tr>
+</table>
+
+<h3>6.3 9-pass 渲染层级</h3>
+<pre class="diagram">for y = 0..239:
+  pass 1: sp->draw_face(y)           ← 背景渐变
+  pass 2: sp->draw_blush(y)          ← 腮红（叠加在背景上）
+  pass 3: sp->draw_mouth(y)          ← 嘴巴（含舌头/牙齿）
+  pass 4: sp->draw_eye_left(y)       ← 左眼（虹膜+瞳孔+高光+眼睫毛）
+  pass 5: sp->draw_eye_right(y)      ← 右眼
+  pass 6: sp->draw_brow_left(y)      ← 左眉
+  pass 7: sp->draw_brow_right(y)     ← 右眉
+  pass 8: sp->draw_decor_overlay(y)  ← 装饰层（泪滴/星星/汗滴/闪光）
+  pass 9: sp->draw_props(y)          ← 道具层（爱心/茶杯/手/星/汗滴）
+  gc9a01_send_pixels(line_buf, 240)  ← SPI 推一行</pre>
+<p>每一行的 9 次 pass 在同一个 <code>line_buf[240]</code> 上叠加（后写的覆盖先写的），实现正确的 Z 序。只用 240×2=480 字节缓冲，而非全帧 115KB。</p>
+
+<h3>6.4 表情数据流</h3>
+<pre class="diagram">face_set_expression(HAPPY)
+  → animator_set_expression(1)
+    → 从 EXPRESSION_DEFS[1] 读 target + timing
+    → 为 7 个 component 各创建 lv_anim_t
+      → 每个 component: 从当前值 lerp 到 target 值
+        → anim_exec_cb 每帧更新 current_state
+
+face_render_frame()
+  → animator_get_state() → 栈上 copy
+  → micro_animator_apply(&display_state)  ← 叠加微动画
+  → prop_animator_apply(&display_state)   ← 叠加道具动画
+  → renderer_render_frame(&display_state)
+    → 逐行调用 sprite 的 9 个 draw 函数（传入 face_state_t）</pre>
+
+<h3>6.5 sprite_set_t 结构</h3>
+<p>每个 sprite 是一个 <code>sprite_set_t</code> 结构体，包含：</p>
+<table>
+<tr><th>字段</th><th>类型</th><th>说明</th></tr>
+<tr><td><code>name</code></td><td><code>const char *</code></td><td>显示名称</td></tr>
+<tr><td><code>eye_radius</code></td><td><code>float</code></td><td>眼睛半径（归一化坐标）</td></tr>
+<tr><td><code>eye_half_spacing</code></td><td><code>float</code></td><td>两眼间距的一半</td></tr>
+<tr><td><code>mouth_y_center</code></td><td><code>float</code></td><td>嘴巴 Y 坐标</td></tr>
+<tr><td><code>brow_y_offset</code></td><td><code>float</code></td><td>眉毛 Y 偏移</td></tr>
+<tr><td><code>blush_y_offset</code></td><td><code>float</code></td><td>腮红 Y 偏移</td></tr>
+<tr><td><code>draw_face/draw_blush/...</code></td><td>9 个函数指针</td><td>每 pass 的绘制函数（签名见下）</td></tr>
+<tr><td><code>pal</code></td><td><code>const uint16_t *</code></td><td>PAL_COUNT 色调色板指针（10 套主题 × ~15 色）</td></tr>
+</table>
+<p>绘制函数签名：<code>void draw_xxx(int y, const face_state_t *st, const sprite_set_t *sp, uint16_t *buf)</code></p>
+
+<h3>6.6 9 套 sprite 风格</h3>
+<table>
+<tr><th>Sprite</th><th>调色板</th><th>眼半径</th><th>眼距</th><th>视觉特征</th></tr>
+<tr><td><strong>Vector</strong> ⭐默认</td><td>PALETTE_VECTOR</td><td>38</td><td>28×2</td><td>圆润矢量风，黑色瞳孔，9 种嘴型按参数自动分类，柔和反锯齿，limbal ring + 双 catchlight</td></tr>
+<tr><td><strong>Lineart</strong></td><td>PALETTE_LINEART</td><td>35</td><td>38×2</td><td>黑底白线，纯白轮廓+ catchlight+白线眉，极简素描风</td></tr>
+<tr><td><strong>Classic</strong></td><td>PALETTE_WHITE</td><td>35</td><td>38×2</td><td>奶粉白底，二次贝塞尔眉毛+舌头+牙齿+3层高光，经典卡通</td></tr>
+<tr><td><strong>Cat</strong></td><td>PALETTE_CAT</td><td>32</td><td>24×2</td><td>暗紫底+金色虹膜，竖缝瞳孔+贝塞尔曲线猫耳+Ω形嘴+胡须</td></tr>
+<tr><td><strong>Pixel</strong></td><td>PALETTE_PIXEL</td><td>32</td><td>26×2</td><td>8-bit风格，4px网格量化+纯色块无反锯齿，像素复古风</td></tr>
+<tr><td><strong>Robot</strong></td><td>PALETTE_ROBOT</td><td>30</td><td>28×2</td><td>金属蓝底，六角形眼眶+LED辉光+格栅嘴+状态灯，机械风</td></tr>
+<tr><td><strong>Nova</strong></td><td>PALETTE_NOVA</td><td>30</td><td>32×2</td><td>暗蓝太空底+星芒眼+彗尾嘴+星尘腮红+轨道装饰，宇宙风</td></tr>
+<tr><td><strong>Pig</strong></td><td>PALETTE_PIG</td><td>30</td><td>26×2</td><td>粉色猪猪风，圆鼻+招风耳+蹄形装饰，可爱农场风</td></tr>
+<tr><td><strong>Chibi</strong></td><td>PALETTE_CHIBI</td><td>45</td><td>32×2</td><td>暖色调手绘风，Bayer 抖动腮红+抖动眉毛+金箔装饰+睫毛，日系 Q 版</td></tr>
+</table>
+
+<h3>6.7 13 种表情</h3>
+<table>
+<tr><th>#</th><th>表情</th><th>触发方式</th><th>面部特征</th><th>眉毛</th><th>嘴</th><th>装饰</th></tr>
+<tr><td>0</td><td><strong>NEUTRAL</strong></td><td>默认</td><td>圆润 0.66，正常眼</td><td>平直</td><td>闭合</td><td>blush 0.38</td></tr>
+<tr><td>1</td><td><strong>HAPPY</strong></td><td>水平摇晃</td><td>开心眯眼，大瞳孔</td><td>上扬 arch -0.45</td><td>宽笑 + 露齿</td><td>blush 0.72, stars</td></tr>
+<tr><td>2</td><td><strong>SAD</strong></td><td>连拍两下</td><td>圆润 0.4，半垂眼</td><td>八字眉 tail +0.35</td><td>微张下垂</td><td>tears 0.6</td></tr>
+<tr><td>3</td><td><strong>SURPRISED</strong></td><td>翻转/旋转/垂直摇</td><td>大眼，小瞳孔 0.45</td><td>高挑 arch -0.7</td><td>O 形张 0.5</td><td>blush 0.15</td></tr>
+<tr><td>4</td><td><strong>SLEEPY</strong></td><td>30s 无互动</td><td>半闭眼，瞳孔上移</td><td>下压 arch +0.15</td><td>微张 0.2</td><td>blush 0.1</td></tr>
+<tr><td>5</td><td><strong>ANGRY</strong></td><td>(预留)</td><td>圆润 0.4，锐利</td><td>V 形倒竖</td><td>紧闭</td><td>全无</td></tr>
+<tr><td>6</td><td><strong>BORED</strong></td><td>10s 无互动</td><td>半垂眼看下方</td><td>微挑 arch +0.15</td><td>微张 0.05</td><td>全无</td></tr>
+<tr><td>7</td><td><strong>EXCITED</strong></td><td>(预留)</td><td>圆润 0.7，大眼大瞳孔</td><td>高挑 arch -0.5</td><td>大笑 0.3 + 露齿</td><td>blush 0.4, stars</td></tr>
+<tr><td>8</td><td><strong>CONFUSED</strong></td><td>倾斜(前/左/右)</td><td>一眼大一眼小</td><td>不对称</td><td>偏向一边</td><td>sweat 0.2</td></tr>
+<tr><td>9</td><td><strong>CONTENT</strong></td><td>持续摸头(预留)</td><td>温柔眯眼 lash 0.8</td><td>柔和弧线</td><td>微笑闭合</td><td>blush 0.75</td></tr>
+<tr><td>10</td><td><strong>COLD</strong></td><td>温度 &lt; 15°C</td><td>圆润 0.4，小瞳孔</td><td>下沉 arch +0.2</td><td>紧闭</td><td>blush 0.3</td></tr>
+<tr><td>11</td><td><strong>WARM</strong></td><td>捂热</td><td>舒适半闭大瞳孔</td><td>柔和下垂</td><td>微笑 0.05</td><td>blush 0.5, stars</td></tr>
+<tr><td>12</td><td><strong>HEART_EYES</strong></td><td>挚友碰面</td><td>爱心眼 pupil 0</td><td>上扬 arch -0.45</td><td>大笑 0.15</td><td>blush 0.65, stars</td></tr>
+</table>
+
+<!-- ═══════════════════════════════════════════ 6.8 绘制Face的方法 ═══════ -->
+<h2 id="sec-face-draw">6.8 绘制 Face 的方法详解</h2>
+
+<p>本节从零开始讲解如何实现一个 sprite 的绘制函数——理解扫描线渲染模型、坐标映射、用 <code>face_state_t</code> 驱动动态效果，以及各种绘制原语的实现模式。</p>
+
+<h3>6.8.1 渲染模型：逐行扫描</h3>
+
+<p>Harti <strong>不使用全帧缓冲</strong>（240×240×2=115KB 太贵）。每帧渲染是一个双层循环：</p>
+
+<pre class="diagram">outer loop: y = 0 → 239                    ← 240 行
+  │
+  ├─ 清空 line_buf[240]（全部填底色）
+  ├─ pass 1: sp->draw_face(y, ...)         ← 此行背影
+  ├─ pass 2: sp->draw_blush(y, ...)        ← 腮红叠在脸上
+  ├─ pass 3: sp->draw_mouth(y, ...)        ← 嘴（含舌头/牙齿）
+  ├─ pass 4: sp->draw_eye_left(y, ...)     ← 左眼
+  ├─ pass 5: sp->draw_eye_right(y, ...)    ← 右眼
+  ├─ pass 6: sp->draw_brow_left(y, ...)    ← 左眉
+  ├─ pass 7: sp->draw_brow_right(y, ...)   ← 右眉
+  ├─ pass 8: sp->draw_decor_overlay(y, ...)← 装饰层
+  └─ gc9a01_send_pixels(line_buf, 240)     ← SPI 推一行</pre>
+
+<p>9 次 pass 在<strong>同一行缓冲区</strong>上叠加，后写的覆盖先写的。这是 Z 序的关键——眉毛永远画在眼睛上方，装饰永远在最顶层，道具在最顶层。</p>
+
+<h3>6.8.2 绘制函数签名</h3>
+
+<pre><code>void draw_xxx(int y, const face_state_t *st, const sprite_set_t *sp, uint16_t *buf);</code></pre>
+
+<table>
+<tr><th>参数</th><th>含义</th><th>用法</th></tr>
+<tr><td><code>y</code></td><td>当前扫描行号 (0-239)</td><td>判断此行是否落在几何体内，计算与几何体的纵向距离</td></tr>
+<tr><td><code>st</code></td><td>当前面部状态</td><td>读取 7 个组件参数，驱动动态效果（眼睑、虹膜、嘴型、眉毛、装饰强度等）</td></tr>
+<tr><td><code>sp</code></td><td>当前 sprite 配置</td><td>读取 <code>eye_radius</code>、<code>eye_half_spacing</code> 等布局参数，以及 <code>pal</code> 调色板</td></tr>
+<tr><td><code>buf</code></td><td>240 像素缓冲区</td><td>直接写入 <code>buf[x] = color</code>，RGB565 格式 <code>uint16_t</code></td></tr>
+</table>
+
+<h3>6.8.3 坐标系统</h3>
+
+<pre class="diagram">     (0,0) ────────────────────── (239,0)
+       │                              │
+       │         SCREEN 240×240       │
+       │                              │
+       │     CENTER(120,120)          │
+       │     +                        │
+       │   半径 r 范围 0-105           │
+       │   常用 eye_radius 30-38      │
+       │   mouth_y_center ~50         │
+       │                              │
+   (0,239) ────────────────────── (239,239)</pre>
+
+<p>关键常量（通常在 sprite 顶部定义）：</p>
+<pre><code>#define SCREEN_W  240
+#define SCREEN_H  240
+#define CENTER_X  120
+#define CENTER_Y  120</code></pre>
+
+<div class="note"><strong>归一化坐标 vs 像素坐标：</strong> <code>face_state_t</code> 中的所有关键点字段（<code>dx, dy</code>）都是归一化的，范围约 [-1.0, 1.0]。使用时需要乘以像素缩放因子，例如：
+<pre><code>// iris_center.dx ∈ [-1,1] → 映射为像素偏移 ±22px
+float iris_offset_x = ep->iris_center.dx * 22.0f;
+
+// top_lid_mid.dy ∈ [-1,1] → 映射眼皮闭合幅度
+float lid_open = 1.0f - (ep->top_lid_mid.dy * 1.6f);
+
+// mouth openness ∈ [0,1]
+float mouth_scale = 1.0f + mp->openness * 0.6f;</code></pre>
+缩放因子不是固定的——不同的 sprite 风格可以使用不同的因子来适配自己的视觉比例。
+</div>
+
+<h3>6.8.4 基本绘制原语（pattern 速查）</h3>
+
+<h4>A. 填充圆形</h4>
+<pre><code>// 在行 y 上画一个填充圆（圆心 cx,cy，半径 r，颜色 color）
+static void draw_filled_circle_row(int y, int cx, int cy, float r,
+                                    uint16_t color, uint16_t *buf) {
+    float dy = (float)(y - cy);
+    if (fabsf(dy) > r) return;  // 行在圆外，跳过
+    float xspan = sqrtf(r * r - dy * dy);
+    int x0 = cx - (int)xspan;
+    int x1 = cx + (int)xspan;
+    if (x0 < 0) x0 = 0;
+    if (x1 >= SCREEN_W) x1 = SCREEN_W - 1;
+    for (int x = x0; x <= x1; x++) buf[x] = color;
+}</code></pre>
+
+<h4>B. 圆环（空心圆 outline）</h4>
+<pre><code>// 画一个圆环：内半径 inner_r，外半径 outer_r
+float dy = (float)(y - cy);
+if (fabsf(dy) > outer_r) return;
+float outer_span = sqrtf(outer_r * outer_r - dy * dy);
+float inner_span = (fabsf(dy) < inner_r)
+    ? sqrtf(inner_r * inner_r - dy * dy) : 0.0f;
+
+int x_left   = cx - (int)outer_span;
+int x_right  = cx + (int)outer_span;
+int x_il     = cx - (int)inner_span;
+int x_ir     = cx + (int)inner_span;
+
+// 左半环 + 右半环
+for (int x = x_left;  x < x_il;  x++) if (x >= 0)        buf[x] = color;
+for (int x = x_ir + 1; x <= x_right; x++) if (x < SCREEN_W) buf[x] = color;</code></pre>
+
+<h4>C. 任意厚度线条（基于距离函数）</h4>
+<pre><code>// 通用的"距离-线宽"判定模式——画曲线最常用！
+// half_thick = 线宽的一半（比如 8px 线用 4.0f）
+if (fabsf(distance_to_curve) < half_thick) {
+    buf[x] = color;
+}</code></pre>
+<p>这个模式适用于<strong>任何几何形状</strong>：贝塞尔曲线上的眉毛、二次曲线上的嘴、直线上的胡须——只要能把"点到曲线的距离"算出来就行。</p>
+
+<h4>D. 二次贝塞尔曲线（眉毛、嘴型等）</h4>
+<pre><code>// 三控制点：p0(起点) → p1(曲率控制点) → p2(终点)
+// 对给定的 y，求解 t，再求 x = Bx(t), 曲线 y = By(t)
+float bez_x_at_y(float x0, float y0, float x1, float y1,
+                 float x2, float y2, float y_target) {
+    // 用二次公式从 y_target 反解参数 t
+    float a = y0 - 2.0f * y1 + y2;
+    float b = 2.0f * (y1 - y0);
+    float c = y0 - y_target;
+    float t;
+    if (fabsf(a) < 0.0005f) {
+        t = (fabsf(b) < 0.0005f) ? -1.0f : -c / b;
+    } else {
+        float disc = b * b - 4.0f * a * c;
+        if (disc < 0.0f) return -1.0f;
+        float sd = sqrtf(disc);
+        float t0 = (-b + sd) / (2.0f * a);
+        float t1 = (-b - sd) / (2.0f * a);
+        t = (t0 >= 0.0f && t0 <= 1.0f) ? t0 :
+            (t1 >= 0.0f && t1 <= 1.0f) ? t1 : -1.0f;
+    }
+    if (t < 0.0f || t > 1.0f) return -1.0f;
+    float s = 1.0f - t;
+    return s * s * x0 + 2.0f * s * t * x1 + t * t * x2;
+}</code></pre>
+
+<p>实际使用时，先调用 <code>bez_x_at_y</code> 得到此行曲线上的 x 坐标，然后用距离判定画线：</p>
+<pre><code>float curve_x = bez_x_at_y(inner_x, inner_y, arch_x, arch_y, tail_x, tail_y, (float)y);
+if (curve_x >= 0.0f) {
+    float half_th = bp->thickness * 1.5f;
+    for (int x = x_min; x <= x_max; x++) {
+        if (fabsf((float)x - curve_x) < half_th)
+            buf[x] = pal[PAL_BROW];
+    }
+}</code></pre>
+
+<h4>E. 带边缘抗锯齿的判定</h4>
+<pre><code>// 用 edge = fabsf(dist - r) 判断是否在边缘附近
+// 边缘距离 < 1.0f → 半透明过渡
+float edge = fabsf(r - FACE_R);
+if (edge < LINE_HALF) {
+    buf[x] = pal[PAL_BG_EDGE];   // 边缘色
+} else if (r < FACE_R) {
+    buf[x] = pal[PAL_BG];        // 内部填充色
+}
+// 外部不写 → 保留背景</code></pre>
+
+<h3>6.8.5 face_state_t 驱动动态效果</h3>
+
+<p>每个绘制函数需要查看 <code>face_state_t</code> 中对应组件的参数，让静态几何体"动起来"。</p>
+
+<h4>眼睛绘制 —— 最重要、最复杂的组件</h4>
+<pre><code>static void draw_eye_impl(int y, const eye_params_t *ep, float eye_r,
+                           int eye_cx, int eye_cy, const uint16_t *pal, uint16_t *buf) {
+    // 1. 虹膜偏移 —— 眼珠转动
+    float iris_dx = ep->iris_center.dx * eye_r * 0.35f;  // 最大移 35% 半径
+    float iris_dy = ep->iris_center.dy * eye_r * 0.35f;
+    int iris_cx = eye_cx + (int)iris_dx;
+    int iris_cy = eye_cy + (int)iris_dy;
+
+    // 2. 上眼皮位置 —— 控制"开合度"
+    float lid_open = 1.0f - (ep->top_lid_mid.dy * 1.6f);
+    if (lid_open < 0.04f) lid_open = 0.04f;   // clamp，不完全闭合
+    if (lid_open > 1.05f) lid_open = 1.05f;
+
+    // 3. 眼皮曲线 —— 用二次函数模拟弧形
+    float base_top = -eye_r * lid_open;
+    float base_bot =  eye_r * lid_open;
+
+    for (int x = ...) {
+        float fx = (float)(x - eye_cx);
+        float fy = (float)(y - eye_cy);
+        float r_sq = fx * fx + fy * fy;
+        if (r_sq > eye_r * eye_r) continue;   // 在眼球外
+
+        // 弧形：根据 x 到中心的距离调整上眼皮曲率
+        float arc = 1.0f - (fx * fx) / (eye_r * eye_r);
+        float inner_adj = ep->inner_corner.dy * 5.0f;
+        float outer_adj = ep->outer_corner.dy * 5.0f;
+        float corner_adj = inner_adj + (outer_adj - inner_adj)
+                         * ((fx + eye_r) / (2.0f * eye_r));
+
+        float top_lid = base_top + (4.0f * lid_open * arc) + corner_adj * 0.5f;
+        float bot_lid = base_bot - (2.5f * lid_open * arc) - corner_adj * 0.3f;
+
+        // 眼皮裁剪：在眼睑外的像素不画（由背景覆盖）
+        if (fy < top_lid || fy > bot_lid) continue;
+
+        // 4. 高光点 —— 根据 shine_intensity 控制亮度
+        float hl_dist = dist_sq(fx, fy, HL_DX, HL_DY);
+        if (hl_dist < HL_R_SQ && ep->shine_intensity > 0.3f) {
+            buf[x] = pal[PAL_SHINE];
+            continue;
+        }
+
+        // 5. 瞳孔 —— pupil_scale 控制大小
+        float pupil_r_sq = eye_r * eye_r * 0.15f * ep->pupil_scale;
+        if (dist_sq(fx, fy, iris_dx, iris_dy) < pupil_r_sq) {
+            buf[x] = pal[PAL_PUPIL];
+            continue;
+        }
+
+        // 6. 虹膜（眼球白色部分）
+        buf[x] = pal[PAL_SCLERA];
+    }
+}</code></pre>
+
+<h4>其他组件的参数使用</h4>
+<table>
+<tr><th>组件</th><th>参数</th><th>效果</th><th>典型映射</th></tr>
+<tr><td>嘴</td><td><code>openness</code></td><td>张嘴大小</td><td><code>hw = sin(t*π) * MAX * (1.0 + openness * 0.6)</code></td></tr>
+<tr><td>嘴</td><td><code>left/right_corner.dx</code></td><td>嘴角上下</td><td><code>hw_l = hw + corner.dx * 6.0f</code> —— 微笑时嘴角外扩</td></tr>
+<tr><td>嘴</td><td><code>cupid_depth</code></td><td>唇峰凹陷</td><td>在口部中心叠加正弦凹陷</td></tr>
+<tr><td>嘴</td><td><code>tooth_show</code></td><td>露齿程度</td><td>在张嘴区域内叠加白色矩形</td></tr>
+<tr><td>眉</td><td><code>inner/arch/tail.dx,dy</code></td><td>三关键点偏移</td><td><code>inner_x = eye_cx + bp->inner.dx * 22.0f</code></td></tr>
+<tr><td>眉</td><td><code>thickness</code></td><td>眉毛粗细</td><td><code>half_th = bp->thickness * 1.5f</code></td></tr>
+<tr><td>脸</td><td><code>roundness</code></td><td>脸型圆度</td><td>用于椭圆/圆脸切换</td></tr>
+<tr><td>脸</td><td><code>squash_x/stretch_y</code></td><td>挤压拉伸</td><td>微动画呼吸效果 —— 由 face_micro 写入</td></tr>
+<tr><td>装饰</td><td><code>blush</code></td><td>腮红强度 (0-1)</td><td>腮红半径 = BLUSH_R * level</td></tr>
+<tr><td>装饰</td><td><code>tears/stars/sweat</code></td><td>特效强度 (0-1)</td><td><code>if (level > 0.01f) { draw_effect(); }</code></td></tr>
+</table>
+
+<h3>6.8.6 微动画叠加层（face_micro）</h3>
+
+<p><code>face_render_frame()</code> 在渲染前会调用 <code>micro_animator_apply()</code>，在 <code>face_state_t</code> 的副本上叠加四种微动画：</p>
+
+<table>
+<tr><th>微动画</th><th>修改的字段</th><th>效果</th></tr>
+<tr><td>眨眼</td><td><code>eye[].top_lid_mid.dy</code></td><td>per-eye 状态机，80ms 闭 + 60ms 闭眼 + 160ms 开，12% 概率双重眨眼，5% 概率自动 wink</td></tr>
+<tr><td>视线游走</td><td><code>eye[].iris_center.dx/dy</code></td><td>4 相状态机（凝视/转移/扫视/回中）+ 慢速眼部漂移，范围 ±0.28~0.35</td></tr>
+<tr><td>呼吸</td><td><code>face.squash_x/stretch_y</code></td><td>sin 波周期 3.5s，振幅 ±0.015</td></tr>
+<tr><td>倾斜跟随</td><td><code>eye[].iris_center.dx/dy</code></td><td>IMU pitch/roll 低通平滑 → 虹膜偏移 ±0.10</td></tr>
+</table>
+
+<div class="note"><strong>设计要点：</strong>微动画层操作的是 <code>animator_get_state()</code> 返回值的<strong>栈上副本</strong>——不改动动画系统的 current_state。这确保表情过渡动画和微动画互不干扰。</div>
+
+<h3>6.8.7 完整 sprite 最小示例：纯圆脸 + 点状眼 + 线条嘴</h3>
+
+<p>以下是最精简的 sprite 实现（约 80 行），展示所有必要部分。可作为新建 sprite 的模板：</p>
+
+<pre><code>// sprite_minimal.c —— 最简 sprite 模板
+#include "sprite_minimal.h"
+#include "face_common.h"
+#include "face_palette.h"
+#include &lt;math.h&gt;
+
+#define SCREEN_W 240
+#define CENTER_X 120
+#define CENTER_Y 120
+
+// ── draw_face: 纯色背景 + 圆脸轮廓 ─────────────────
+static void draw_face(int y, const face_state_t *st,
+                      const sprite_set_t *sp, uint16_t *buf) {
+    (void)st;
+    const uint16_t *pal = sp->pal;
+    float r2 = 0.0f, face_r = 105.0f;
+
+    // 此行在圆外 → 留底色
+    float dy = (float)(y - CENTER_Y);
+    if (fabsf(dy) > face_r) return;
+
+    float half_w = sqrtf(face_r * face_r - dy * dy);
+    int x_l = CENTER_X - (int)half_w - 1;
+    int x_r = CENTER_X + (int)half_w + 1;
+    if (x_l < 0) x_l = 0;
+    if (x_r >= SCREEN_W) x_r = SCREEN_W - 1;
+
+    for (int x = x_l; x <= x_r; x++) {
+        r2 = dist_sq(x, y, CENTER_X, CENTER_Y);
+        float r = sqrtf(r2);
+        float edge = fabsf(r - face_r);
+        if (edge < 4.0f) buf[x] = pal[PAL_BG_EDGE];   // 8px 黑色轮廓
+        else if (r < face_r) buf[x] = pal[PAL_BG];     // 白色填充
+    }
+}
+
+// ── draw_eye_left: 实心圆眼 + 眼皮裁剪 ─────────────
+static void draw_eye_left(int y, const face_state_t *st,
+                           const sprite_set_t *sp, uint16_t *buf) {
+    const eye_params_t *ep = &st->eye[0];
+    const uint16_t *pal = sp->pal;
+    int ecx = CENTER_X - (int)sp->eye_half_spacing;
+    int ecy = CENTER_Y + (int)sp->mouth_y_center - 40;
+    float er = sp->eye_radius;
+    float lid_open = 1.0f - (ep->top_lid_mid.dy * 1.6f);
+    if (lid_open < 0.04f) lid_open = 0.04f;
+
+    float dy = (float)(y - ecy);
+    if (fabsf(dy) > er) return;
+
+    float hw = sqrtf(er * er - dy * dy);
+    int xl = ecx - (int)hw, xr = ecx + (int)hw;
+    if (xl < 0) xl = 0; if (xr >= SCREEN_W) xr = SCREEN_W - 1;
+
+    float base_top = -er * lid_open;
+    for (int x = xl; x <= xr; x++) {
+        float dx = (float)(x - ecx);
+        if (dy < base_top + (4.0f * lid_open * (1.0f - dx*dx/(er*er))))
+            continue;         // 上眼皮裁剪
+        if (dist_sq(dx, dy, 0, 0) < er * er)
+            buf[x] = pal[PAL_PUPIL];   // 全黑填充
+    }
+}
+
+// ── 其余 7 个 draw 函数 ────────────────────────────
+static void draw_eye_right(int y, const face_state_t *st,
+                            const sprite_set_t *sp, uint16_t *buf) {
+    int ecx = CENTER_X + (int)sp->eye_half_spacing;
+    int ecy = CENTER_Y + (int)sp->mouth_y_center - 40;
+    float er = sp->eye_radius;
+    const eye_params_t *ep = &st->eye[1];
+    float lid_open = 1.0f - (ep->top_lid_mid.dy * 1.6f);
+    // ... 同上
+}
+
+static void draw_mouth(int y, const face_state_t *st,
+                        const sprite_set_t *sp, uint16_t *buf) {
+    const mouth_params_t *mp = &st->mouth;
+    const uint16_t *pal = sp->pal;
+    int mcy = CENTER_Y + (int)sp->mouth_y_center;   // 120+50=170
+    float hw = 20.0f * (1.0f + mp->openness * 0.6f);
+
+    if (fabsf((float)(y - mcy)) > 3.0f) return;     // 6px 高直线
+
+    int xl = CENTER_X - (int)hw, xr = CENTER_X + (int)hw;
+    if (xl < 0) xl = 0; if (xr >= SCREEN_W) xr = SCREEN_W - 1;
+    for (int x = xl; x <= xr; x++) buf[x] = pal[PAL_MOUTH];
+}
+
+static void draw_blush(int y, const face_state_t *st,
+                        const sprite_set_t *sp, uint16_t *buf) {
+    /* 可留空，或根据 st->decor.blush 画圆 */
+    (void)y; (void)st; (void)sp; (void)buf;
+}
+static void draw_brow_left(int y, const face_state_t *st,
+                            const sprite_set_t *sp, uint16_t *buf) {
+    (void)y; (void)st; (void)sp; (void)buf;
+}
+static void draw_brow_right(int y, const face_state_t *st,
+                             const sprite_set_t *sp, uint16_t *buf) {
+    (void)y; (void)st; (void)sp; (void)buf;
+}
+static void draw_decor_overlay(int y, const face_state_t *st,
+                                const sprite_set_t *sp, uint16_t *buf) {
+    (void)y; (void)st; (void)sp; (void)buf;
+}
+static void draw_props(int y, const face_state_t *st,
+                       const sprite_set_t *sp, uint16_t *buf) {
+    (void)y; (void)st; (void)sp; (void)buf;   // 道具层，可选实现
+}
+
+// ── sprite 定义 ────────────────────────────────────
+const sprite_set_t SPRITE_MINIMAL = {
+    .name              = "minimal",
+    .eye_radius        = 28.0f,
+    .eye_half_spacing  = 30.0f,
+    .mouth_y_center    = 50.0f,
+    .brow_y_offset     = -35.0f,
+    .blush_y_offset    = 55.0f,
+    .draw_face         = draw_face,
+    .draw_blush        = draw_blush,
+    .draw_mouth        = draw_mouth,
+    .draw_eye_left     = draw_eye_left,
+    .draw_eye_right    = draw_eye_right,
+    .draw_brow_left    = draw_brow_left,
+    .draw_brow_right   = draw_brow_right,
+    .draw_decor_overlay= draw_decor_overlay,
+    .draw_props        = draw_props,
+    .pal               = PALETTE_WHITE,
+};</code></pre>
+
+<h3>6.8.8 性能注意事项</h3>
+
+<table>
+<tr><th>事项</th><th>说明</th></tr>
+<tr><td><strong>每一行都在 20fps 下被调用</strong></td><td>每帧 240 行 × 9 pass = 2160 次函数调用。避免任何堆分配、递归、长循环。</td></tr>
+<tr><td><strong>early-out 至关重要</strong></td><td>每行的第一件事是判断此行是否落在几何范围内——<code>if (fabsf(y - cy) > r) return;</code>。大多数行会立即返回。</td></tr>
+<tr><td><strong>避免浮点除法和 sqrtf 在像素循环内</strong></td><td>平方距离和半径平方的比较可以避免 sqrtf：<code>if (dx*dx + dy*dy < r_sq)</code> 而不是 <code>if (sqrtf(...) < r)</code></td></tr>
+<tr><td><strong>使用 static const 存储常量几何数据</strong></td><td>固定位置的装饰（胡须坐标、星星位置等）用 <code>static const int[4][2]</code> 定义在函数内，不占用栈空间。</td></tr>
+<tr><td><strong>复杂的曲线计算在 per-row 层做</strong></td><td>如 bez_x_at_y 每行只调用一次（得到曲线 x 坐标），然后在像素循环内只用简单距离判定。</td></tr>
+<tr><td><strong>只用 line_buf 不跨行依赖</strong></td><td>不能访问上一行或下一行的像素。该限制来自扫描线架构——每行独立渲染，SPI 即推即忘。</td></tr>
+</table>
+
+<div class="warn"><strong>常见陷阱：</strong>sprite 绘制函数是<strong>叠加式</strong>的——后面的 pass 会覆盖前面的。如果 <code>draw_eye_left</code> 不写边缘外的像素，背景颜色就会自然透出（这是正确的叠层效果）。如果你想在眼睛上"挖洞"，就直接不写那些像素。</div>
+
+<!-- ═══════════════════════════ 6.9 道具系统 ═══════ -->
+<h2 id="sec-props">6.9 道具系统 (face_prop)</h2>
+
+<p>道具系统在面部上方漂浮漫画式小道具（爱心、茶杯、手、星、汗滴、闪光），增强表情感染力。由 <code>face_prop.h/c</code> 模块管理。</p>
+
+<h3>6.9.1 道具类型</h3>
+<table>
+<tr><th>道具</th><th>枚举值</th><th>触发场景</th><th>视觉效果</th></tr>
+<tr><td>爱心</td><td><code>PROP_HEART</code></td><td>HAPPY / HEART_EYES</td><td>上方漂浮 2-3 颗心形，抖动上升</td></tr>
+<tr><td>汗滴</td><td><code>PROP_SWEAT</code></td><td>CONFUSED / SAD</td><td>侧面一颗大水滴，颤抖</td></tr>
+<tr><td>星星</td><td><code>PROP_STAR</code></td><td>EXCITED / SURPRISED</td><td>四周闪烁 5 角星</td></tr>
+<tr><td>闪光</td><td><code>PROP_SPARKLE</code></td><td>CONTENT / WARM</td><td>柔和光点旋转</td></tr>
+<tr><td>茶杯</td><td><code>PROP_TEACUP</code></td><td>WARM (捂热)</td><td>侧面漂浮茶杯，蒸汽上升</td></tr>
+<tr><td>手</td><td><code>PROP_HAND</code></td><td>(预留挥手)</td><td>旁边一只小手掌</td></tr>
+</table>
+
+<h3>6.9.2 API</h3>
+<pre><code>// 显示/隐藏道具
+void face_prop_show(prop_type_t prop, int slot);   // slot: 0-2，最多同时 3 个
+void face_prop_hide(int slot);
+void face_prop_clear_all(void);
+
+// 每帧更新（由 face_render_frame 自动调用）
+void prop_animator_init(void);
+void prop_animator_apply(face_state_t *display_state);</code></pre>
+
+<h3>6.9.3 绘制</h3>
+<p>道具由第 9 个渲染 pass <code>draw_props()</code> 绘制。共享绘制辅助函数（爱心/星/汗滴形状）定义在 <code>face_common.h</code> 中。每个 sprite 可以选择性实现此 pass，不实现的 sprite 该 pass 为空操作。</p>
+
+<!-- ═══════════════════════════ 6.10 几何原语 ═══════ -->
+<h2 id="sec-common">6.10 几何绘制原语 (face_common.h)</h2>
+
+<p><code>face_common.h</code> 提供了 27 个 <code>static inline</code> 绘制辅助函数，所有 sprite 和道具系统共享。零堆分配，全在行缓冲上操作。</p>
+
+<h3>6.10.1 基础形状（填充）</h3>
+<table>
+<tr><th>函数</th><th>参数</th><th>说明</th></tr>
+<tr><td><code>fill_circle_scan(y, cx, cy, r, ...)</code></td><td>圆心 + 半径</td><td>填充圆</td></tr>
+<tr><td><code>fill_ellipse_scan(y, cx, cy, rx, ry, ...)</code></td><td>中心 + 双半径</td><td>填充椭圆，rx=ry 等价于 fill_circle</td></tr>
+<tr><td><code>fill_triangle_scan(y, x0,y0, x1,y1, x2,y2, ...)</code></td><td>三个顶点</td><td>填充任意三角形，edge-function 方法</td></tr>
+<tr><td><code>fill_ngon_scan(y, cx, cy, r, n, rot, ...)</code></td><td>中心 + 半径 + 边数 + 旋转</td><td>填充正 N 边形（N=3-8）</td></tr>
+<tr><td><code>fill_rounded_rect_scan(y, l,t,r,b, cr, ...)</code></td><td>矩形四边 + 圆角半径</td><td>填充圆角矩形</td></tr>
+<tr><td><code>fill_polygon_evenodd_scan(y, verts, n, ...)</code></td><td>顶点数组 + 数量 (≤12)</td><td>通用多边形，even-odd 填充规则</td></tr>
+</table>
+
+<h3>6.10.2 表情专用形状</h3>
+<table>
+<tr><th>函数</th><th>参数</th><th>说明</th></tr>
+<tr><td><code>fill_heart_scan(y, cx, cy, size, ...)</code></td><td>中心 + 大小</td><td>填充爱心（2 圆 + 1 三角组合）</td></tr>
+<tr><td><code>fill_star_scan(y, cx, cy, outer_r, inner_r, n, rot, ...)</code></td><td>中心 + 外径 + 内径 + 角数</td><td>填充 N 角星（N=3-6），even-odd fill</td></tr>
+<tr><td><code>fill_teardrop_scan(y, cx, cy, size, ...)</code></td><td>中心 + 大小</td><td>填充泪滴（圆 + 三角组合）</td></tr>
+</table>
+
+<h3>6.10.3 圆环 & 轮廓</h3>
+<table>
+<tr><th>函数</th><th>说明</th></tr>
+<tr><td><code>draw_ring_scan(y, cx, cy, inner_r, outer_r, ...)</code></td><td>空心圆环</td></tr>
+<tr><td><code>draw_arc_scan(y, cx, cy, r, angle_start, angle_end, ...)</code></td><td>圆弧段</td></tr>
+<tr><td><code>draw_dashed_ring_scan(y, cx, cy, r, dash_len, gap_len, ...)</code></td><td>虚线圆环</td></tr>
+<tr><td><code>draw_wavy_ring_scan(y, cx, cy, r, amp, freq, ...)</code></td><td>波浪圆环</td></tr>
+</table>
+
+<h3>6.10.4 效果 & 工具</h3>
+<table>
+<tr><th>函数</th><th>说明</th></tr>
+<tr><td><code>hand_jitter(x, y, seed)</code></td><td>确定性 hash 抖动（±1.5px），手绘风格</td></tr>
+<tr><td><code>bayer_accept(x, y, opacity)</code></td><td>Bayer 4×4 有序抖动，柔和半透明</td></tr>
+<tr><td><code>blend_colors(c1, c2, t)</code></td><td>RGB565 线性混合</td></tr>
+<tr><td><code>dist_sq(x1, y1, x2, y2)</code></td><td>平方距离（避免 sqrt）</td></tr>
+<tr><td><code>bez_x_at_y(x0,y0, x1,y1, x2,y2, y_target)</code></td><td>二次贝塞尔曲线 Y→X 求解</td></tr>
+<tr><td><code>cr_curve_at_y(cr, y_target)</code></td><td>Catmull-Rom 样条 Y→X 求解</td></tr>
+</table>
+
+<div class="note"><strong>设计原则：</strong>所有原语都是 <code>static inline</code>，零堆分配。每个函数只处理一行（y），直接在 <code>buf[240]</code> 上写入。编译器自动内联，不使用时不会产生代码体积。</div>
+
+<!-- ═══════════════════════════════════════════ 7. 传感器 ═══════ -->
+<h2 id="sec-sensors">7. 传感器事件系统</h2>
+
+<h3>7.1 事件类型</h3>
+<table>
+<tr><th>事件</th><th>触发条件</th><th>value 含义</th><th>行为响应</th></tr>
+<tr><td><code>EVT_SHAKE</code></td><td>加速度幅值 &gt; 2.5g 持续 &gt;300ms</td><td>0=全向, 1=水平, 2=垂直</td><td>EXCITED / HAPPY / SURPRISED</td></tr>
+<tr><td><code>EVT_TAP</code></td><td>幅值 &gt; 1.5g 持续 ≤50ms</td><td>连拍次数（累计）</td><td>连拍≥2次 → SAD</td></tr>
+<tr><td><code>EVT_FLIP</code></td><td>Z 轴 &lt; -0.7g 持续 &gt;500ms</td><td>0</td><td>SURPRISED</td></tr>
+<tr><td><code>EVT_TWIST</code></td><td>陀螺 Z &gt; 100°/s 持续 &gt;100ms</td><td>+1 cw, -1 ccw</td><td>SURPRISED</td></tr>
+<tr><td><code>EVT_TILT</code></td><td>pitch/roll &gt; 25° 持续 &gt;250ms</td><td>0前 1左 2右 3后</td><td>前/左/右→CONFUSED, 后→SURPRISED</td></tr>
+<tr><td><code>EVT_WARM_UP</code></td><td>每秒升温 &gt; 0.4°C 连续 5s</td><td>当前温度 °C</td><td>WARM</td></tr>
+<tr><td><code>EVT_COLD_DOWN</code></td><td>温度 &lt; 15°C</td><td>当前温度 °C</td><td>COLD</td></tr>
+<tr><td><code>EVT_BLE_MEET</code></td><td>碰一碰（预留）</td><td>—</td><td>BLE MEET log</td></tr>
+<tr><td><code>EVT_BLE_FRIEND</code></td><td>碰老朋友（预留）</td><td>关系等级</td><td>BLE FRIEND log</td></tr>
+</table>
+
+<h3>7.2 数据流</h3>
+<pre class="diagram">sensor_task (100Hz)
+  └─ imu_read() → imu_data_t {accel[3], gyro[3]}
+       └─ process_imu()
+            ├─ 存入滑动窗口 accel_history[50][3]
+            ├─ 计算动态幅值 dynamic_mag = |mag - 1.0g|
+            ├─ 检测 TAP (短脉冲)       → xQueueSend(EVT_TAP)
+            ├─ 检测 SHAKE (持续高幅值)  → xQueueSend(EVT_SHAKE)
+            ├─ 检测 FLIP (Z轴反向)     → xQueueSend(EVT_FLIP)
+            ├─ 检测 TWIST (陀螺Z高速)   → xQueueSend(EVT_TWIST)
+            └─ 检测 TILT (持续倾斜)    → xQueueSend(EVT_TILT)
+
+sensor_task (每 100 帧 ≈ 1s)
+  └─ temp_read_celsius() → float
+       └─ process_temp()
+            ├─ 检测 WARM_UP (升温速率) → xQueueSend(EVT_WARM_UP)
+            └─ 检测 COLD_DOWN (低温)   → xQueueSend(EVT_COLD_DOWN)</pre>
+
+<h3>7.3 滑动窗口机制</h3>
+<p>IMU 事件检测使用一个 50 帧（500ms）的环形缓冲区 <code>accel_history[50][3]</code>：</p>
+<ul>
+  <li>轻拍检测回溯 10 帧，统计有多少帧超过阈值（≤5帧=真轻拍，>5帧=可能是摇晃开始）</li>
+  <li>摇晃检测计数连续超过阈值的帧数，30 帧（300ms）后触发，同时回溯计算 X/Y 方差判定方向</li>
+  <li>翻转检测计数 Z 轴持续反向的帧数，50 帧（500ms）后触发</li>
+</ul>
+
+<!-- ═══════════════════════════════════════════ 8. 行为状态机 ═══════ -->
+<h2 id="sec-behavior">8. 行为状态机</h2>
+
+<h3>8.1 状态转移图</h3>
+<pre class="diagram">                    ┌─────────────────────────────────────┐
+                    │              任何事件               │
+                    ▼                                     │
+  IDLE ──[水平摇]──> HAPPY                               │
+  IDLE ──[垂直摇]──> SURPRISED ──[3s]──> CONFUSED ──[5s]──> IDLE
+  IDLE ──[翻转]────> SURPRISED                           │
+  IDLE ──[旋转]────> SURPRISED                           │
+  IDLE ──[倾斜]────> CONFUSED                            │
+  IDLE ──[连拍]────> SAD                                 │
+  IDLE ──[捂热]────> WARM                                │
+  IDLE ──[低温]────> COLD                                │
+  IDLE ──[10s]────> BORED ──[30s]──> SLEEPY             │
+                                                         │
+  BORED/SLEEPY ──[任何事件]──> IDLE (先唤醒再处理事件)     │
+  └─────────────────────────────────────────────────────┘</pre>
+
+<h3>8.2 内部状态 vs 对外表情</h3>
+<p>状态机内部使用 <code>behavior_state_t</code>（STATE_IDLE, STATE_HAPPY, ...），通过 <code>transition_to(state, emotion)</code> 转换为对外的 <code>emotion_t</code>。两者分离的好处是：行为逻辑和面部表现可以独立演化。</p>
+
+<h3>8.3 空闲检查</h3>
+<p><code>check_idle()</code> 每秒执行一次（behavior_task 的 xQueueReceive 超时触发），计算距上次事件的秒数：</p>
+<ol>
+  <li>如果当前是 SURPRISED 且已过 3s → 转 CONFUSED</li>
+  <li>如果当前是 CONFUSED 且已过 5s → 转 IDLE</li>
+  <li>如果距上次事件 &gt; 30s → 转 SLEEPY</li>
+  <li>如果距上次事件 &gt; 10s 且当前是 IDLE → 转 BORED</li>
+</ol>
+
+<!-- ═══════════════════════════════════════════ 9. 修改指南 ═══════ -->
+<h2 id="sec-modify">9. 修改指南</h2>
+
+<p>本节覆盖所有常见修改场景，每一步都标注了要改的文件和具体做法。</p>
+
+<h3>9.1 新增一种表情</h3>
+<ol class="step">
+  <li><strong>打开</strong> <code>components/face_system/face_model.c</code></li>
+  <li>在 <code>EXPRESSION_DEFS[]</code> 数组末尾（<code>HEART_EYES</code> 之后，<code>};</code> 之前）添加新条目：
+<pre><code>// [13] 新表情
+{
+    .name = "NEW_EMOTION",
+    .target = {
+        .face = {.roundness = 0.6f},
+        .brow = {BROW_NEUTRAL, BROW_NEUTRAL},
+        .eye  = {EYE_NEUTRAL, EYE_NEUTRAL},
+        .mouth = MOUTH_NEUTRAL,
+        .decor = DECOR_NEUTRAL,
+    },
+    .timing = {
+        [COMPONENT_FACE]       = {150, 0, PATH_EASE_OUT},
+        [COMPONENT_BROW_LEFT]  = {150, 0, PATH_EASE_OUT},
+        [COMPONENT_BROW_RIGHT] = {150, 0, PATH_EASE_OUT},
+        [COMPONENT_EYE_LEFT]   = {150, 0, PATH_EASE_OUT},
+        [COMPONENT_EYE_RIGHT]  = {150, 0, PATH_EASE_OUT},
+        [COMPONENT_MOUTH]      = {150, 50, PATH_EASE_OUT},
+        [COMPONENT_DECOR]      = {150, 100, PATH_EASE_OUT},
+    },
+},</code></pre>
+    修改 <code>.target</code> 中的各组件参数实现新表情的外观。</li>
+  <li><strong>打开</strong> <code>main/harti_config.h</code>，在 <code>emotion_t</code> enum 中 <code>EMOTION_HEART_EYES</code> 之后、<code>EMOTION_COUNT</code> 之前添加新枚举值：
+<pre><code>EMOTION_NEW_EMOTION,  // 新增</code></pre>
+    <div class="warn"><strong>关键：</strong>枚举值顺序必须与 <code>EXPRESSION_DEFS[]</code> 数组索引一致。新表情加在最后就不会破坏现有映射。</div>
+  </li>
+  <li><strong>打开</strong> <code>main/app_behavior.c</code>，在 <code>on_event()</code> 中添加触发逻辑：
+<pre><code>case EVT_XXX:
+    transition_to(STATE_XXX, EMOTION_NEW_EMOTION);
+    break;</code></pre>
+  </li>
+</ol>
+<p><strong>需要改的文件：</strong><code>face_model.c</code> + <code>harti_config.h</code> + <code>app_behavior.c</code>（3 个）</p>
+
+<h3>9.2 新增一套 sprite</h3>
+<ol class="step">
+  <li><strong>创建</strong> <code>components/face_system/sprites/sprite_xxx.h</code>：
+<pre><code>#ifndef SPRITE_XXX_H
+#define SPRITE_XXX_H
+#include "face_model.h"
+extern const sprite_set_t SPRITE_XXX;
+#endif</code></pre>
+  </li>
+  <li><strong>创建</strong> <code>components/face_system/sprites/sprite_xxx.c</code>，实现 9 个绘制函数（第 9 个 <code>draw_props</code> 可选，可留空）：
+<pre><code>static void draw_face(int y, const face_state_t *st,
+                      const sprite_set_t *sp, uint16_t *buf) {
+    // 在此行填充背景
+}
+static void draw_blush(int y, const face_state_t *st,
+                       const sprite_set_t *sp, uint16_t *buf) { ... }
+// ... 其余 6 个函数
+
+const sprite_set_t SPRITE_XXX = {
+    .name = "XXX",
+    .eye_radius = 35,
+    .eye_half_spacing = 28,
+    .mouth_y_center = 47,
+    .brow_y_offset = -30,
+    .blush_y_offset = 35,
+    .draw_face = draw_face,
+    .draw_blush = draw_blush,
+    // ... 填入全部 9 个函数指针 (含 draw_props，可留空)
+    .pal = PALETTE_XXX,  // 如需要新调色板，先在 face_palette 中定义
+};</code></pre>
+  </li>
+  <li><strong>打开</strong> <code>components/face_system/sprites/sprite_registry.c</code>，在 SPRITES[] 数组中添加：
+<pre><code>#include "sprite_xxx.h"           // 新增 include
+static const sprite_set_t *const SPRITES[] = {
+    &SPRITE_VECTOR,
+    ...
+    &SPRITE_ROBOT,
+    &SPRITE_XXX,                   // 新增此行
+};</code></pre>
+  </li>
+  <li><strong>打开</strong> <code>components/face_system/CMakeLists.txt</code>，在 SRCS 中添加：
+<pre><code>"sprites/sprite_xxx.c"</code></pre>
+  </li>
+  <li>（如需要新配色）<strong>打开</strong> <code>components/face_system/face_palette.h</code> 声明 <code>PALETTE_XXX</code>，在 <code>face_palette.c</code> 定义。</li>
+</ol>
+<p><strong>需要改的文件：</strong>新建 2 个 + <code>sprite_registry.c</code> + <code>CMakeLists.txt</code> + 可选 <code>face_palette</code>（3-5 个）</p>
+
+<h3>9.3 修改表情动画参数</h3>
+<p>每个表情的过渡效果由 <code>EXPRESSION_DEFS[id].timing</code> 控制。以 HAPPY 为例：</p>
+<pre><code>.timing = {
+    [COMPONENT_FACE]       = {125, 0, PATH_EASE_OUT},    // 脸 125ms，无延迟，ease-out
+    [COMPONENT_BROW_LEFT]  = {125, 0, PATH_EASE_OUT},    // 左眉 125ms
+    [COMPONENT_BROW_RIGHT] = {125, 0, PATH_EASE_OUT},    // 右眉 125ms
+    [COMPONENT_EYE_LEFT]   = {100, 30, PATH_EASE_OUT},   // 左眼 100ms，延迟 30ms
+    [COMPONENT_EYE_RIGHT]  = {100, 30, PATH_EASE_OUT},   // 右眼 100ms，延迟 30ms
+    [COMPONENT_MOUTH]      = {175, 120, PATH_OVERSPEED},  // 嘴 175ms，延迟 120ms，弹性回弹
+    [COMPONENT_DECOR]      = {150, 80, PATH_EASE_OUT},    // 装饰 150ms，延迟 80ms
+},</code></pre>
+<p>三个参数：<code>{duration_ms, delay_ms, path_type}</code></p>
+<ul>
+  <li><code>duration_ms</code>：过渡时长（毫秒），越大越慢</li>
+  <li><code>delay_ms</code>：延迟启动（毫秒），实现"先眉眼后嘴角"的错落感</li>
+  <li><code>path_type</code>：缓动曲线 — <code>PATH_LINEAR</code> / <code>PATH_EASE_OUT</code> / <code>PATH_EASE_IN</code> / <code>PATH_EASE_IN_OUT</code> / <code>PATH_OVERSPEED</code></li>
+</ul>
+<p><strong>只需改</strong> <code>face_model.c</code> 中对应表情的 <code>.timing</code> 值。</p>
+
+<h3>9.4 调整传感器灵敏度</h3>
+<p>只改 <code>main/harti_config.h</code>。常见调参场景：</p>
+<ul>
+  <li><strong>摇晃太难触发</strong>：降低 <code>SHAKE_G_THRESHOLD</code>（2.5 → 2.0）</li>
+  <li><strong>轻拍太难触发</strong>：降低 <code>TAP_G_THRESHOLD</code>（1.5 → 1.2）</li>
+  <li><strong>轻拍误触发太多</strong>：提高 <code>TAP_G_THRESHOLD</code> 或减少 <code>TAP_MAX_FRAMES</code></li>
+  <li><strong>倾斜太灵敏</strong>：提高 <code>TILT_ANGLE_THRESH</code>（0.436=25° → 0.524=30°）</li>
+  <li><strong>太快变困</strong>：提高 <code>IDLE_SLEEPY_SEC</code>（30 → 60）</li>
+  <li><strong>捂热响应太慢</strong>：减少 <code>WARM_UP_DURATION_SEC</code>（5 → 3）</li>
+</ul>
+
+<h3>9.5 新增传感器事件</h3>
+<ol class="step">
+  <li><strong>打开</strong> <code>main/app_sensors.h</code>，在 <code>sensor_event_t</code> enum 中添加（<code>EVT_TILT</code> 之后即可）：
+<pre><code>EVT_DOUBLE_TAP,  // 新增：双击</code></pre>
+  </li>
+  <li><strong>打开</strong> <code>main/app_sensors.c</code>，在 <code>process_imu()</code> 中添加检测逻辑，检测到后：
+<pre><code>sensor_event_msg_t msg = { .type = EVT_DOUBLE_TAP, .value = 0 };
+xQueueSend(event_queue, &msg, 0);</code></pre>
+  </li>
+  <li><strong>打开</strong> <code>main/app_behavior.c</code>，在 <code>on_event()</code> 的 switch 中添加：
+<pre><code>case EVT_DOUBLE_TAP:
+    transition_to(STATE_HAPPY, EMOTION_HAPPY);
+    break;</code></pre>
+  </li>
+</ol>
+<p><strong>需要改的文件：</strong><code>app_sensors.h</code> + <code>app_sensors.c</code> + <code>app_behavior.c</code>（3 个）</p>
+
+<h3>9.6 修改默认 sprite</h3>
+<p>打开 <code>components/face_system/face_api.h</code>，修改 <code>face_init()</code> 中：
+<pre><code>// 从
+renderer_set_sprite(sprite_registry_default());
+// 改为
+renderer_set_sprite(sprite_registry_get(N));  // N = sprite 在 registry 中的索引</code></pre>
+<p>或者直接改 <code>sprite_registry.c</code> 中 <code>SPRITES[]</code> 数组的顺序，数组第一项即为默认。</p>
+
+<h3>9.7 修改渲染帧率</h3>
+<p>改 <code>main/harti_config.h</code> 中的 <code>DISPLAY_FRAME_MS</code>：
+<pre><code>#define DISPLAY_FRAME_MS  33   // 30fps（原来是 50ms = 20fps）</code></pre>
+<div class="warn"><strong>注意：</strong>帧率翻倍意味着 SPI 传输量和 CPU 时间也翻倍。GC9A01 理论最高约 60fps @ 10MHz，但动画 tick 和渲染计算也可能成为瓶颈。</div>
+
+<h3>9.8 当前默认 sprite 是什么？</h3>
+<p>查看 <code>sprite_registry.c:12</code> — 数组第一项。当前是 <code>&SPRITE_VECTOR</code>。</p>
+
+<h3>9.9 当前哪些表情能被触发？</h3>
+<p>查看 <code>app_behavior.c</code> 的 <code>on_event()</code> switch 分支。当前可自然触发的有：</p>
+<ul>
+  <li>NEUTRAL — 默认</li>
+  <li>HAPPY — 水平摇</li>
+  <li>SAD — 连拍两次</li>
+  <li>SURPRISED — 垂直摇 / 翻转 / Twist / 后倾</li>
+  <li>SLEEPY — 30s 无互动</li>
+  <li>BORED — 10s 无互动</li>
+  <li>EXCITED — 全向摇</li>
+  <li>CONFUSED — 前/左/右倾 + SURPRISED 超时 3s</li>
+  <li>WARM — 捂热</li>
+  <li>COLD — 温度 &lt;15°C</li>
+</ul>
+<p>当前未被触发的（预留）：ANGRY、CONTENT、HEART_EYES。如需触发，在 <code>on_event()</code> 中添加对应 case。</p>
+
+<!-- ═══════════════════════════════════════════ 10. 编译 ═══════ -->
+<h2 id="sec-build">10. 编译 &amp; 烧录</h2>
+
+<h3>10.1 环境准备</h3>
+<pre><code># 1. 安装 ESP-IDF v6.0.1
+git clone --recursive https://github.com/espressif/esp-idf.git ~/esp-idf
+cd ~/esp-idf && git checkout v6.0.1
+./install.sh esp32s3
+
+# 2. 每个新终端执行
+. ~/esp-idf/export.sh
+
+# 3. 验证
+idf.py --version</code></pre>
+
+<h3>10.2 编译命令</h3>
+<pre><code>cd /path/to/harti
+idf.py build          # 编译
+idf.py clean          # 清理 build/
+idf.py fullclean      # 清理 build/ + 所有依赖
+idf.py menuconfig     # 打开 kconfig 菜单</code></pre>
+
+<h3>10.3 烧录 &amp; 监视</h3>
+<pre><code># 烧录 + 打开串口监视
+idf.py -p /dev/tty.usbserial-110 flash monitor
+
+# 仅烧录
+idf.py -p /dev/tty.usbserial-110 flash
+
+# 仅监视
+idf.py -p /dev/tty.usbserial-110 monitor
+
+# 退出监视: Ctrl+]</code></pre>
+
+<h3>10.4 分区表</h3>
+<pre class="diagram">0x000000  bootloader     (~21KB)
+0x008000  partition_table (3KB)
+0x010000  harti.bin      (max 1MB, 当前约 310KB)</pre>
+
+<!-- ═══════════════════════════════════════════ 11. 问题排查 ═══════ -->
+<h2 id="sec-debug">11. 问题排查</h2>
+
+<h3>11.1 屏幕不显示 / 黑屏</h3>
+<table>
+<tr><th>症状</th><th>可能原因</th><th>排查步骤</th></tr>
+<tr><td>全黑，无任何反应</td><td>SPI 线序错</td><td>确认 MOSI=35, SCK=36, CS=40, DC=41, RST=42</td></tr>
+<tr><td>全黑，背光亮</td><td>初始化序列失败</td><td>monitor 中找 "GC9A01 initialized" 日志</td></tr>
+<tr><td>花屏 / 条纹</td><td>SPI 时钟过高或线接触不良</td><td>降 SPI 速率 (gc9a01.c:26 的 10MHz → 5MHz)</td></tr>
+<tr><td>开机闪一下后黑屏</td><td>display_task 栈溢出或崩溃</td><td>查 monitor 中 "Stack canary" 或 "Guru Meditation"</td></tr>
+<tr><td>有画面但颜色异常</td><td>RGB565 字节序错</td><td>检查 gc9a01.c 中 send_pixels 的字节顺序</td></tr>
+</table>
+
+<h3>11.2 IMU 不工作 / 事件不触发</h3>
+<table>
+<tr><th>症状</th><th>可能原因</th><th>排查步骤</th></tr>
+<tr><td>monitor 无 IMU 数据</td><td>I2C 线序错或 MPU6050 未焊接好</td><td>确认 SDA=8, SCL=9；查 "mpu6050 found at 0x68"</td></tr>
+<tr><td>"IMU init failed"</td><td>I2C 地址不对或芯片损坏</td><td>地址自动探测 0x68→0x69，都没有则硬件问题</td></tr>
+<tr><td>IMU 有数据但不触发事件</td><td>阈值太高</td><td>串口每 0.5s 打印 IMU 值，对比阈值设置（harti_config.h）</td></tr>
+<tr><td>摇晃从不触发</td><td>SHAKE_G_THRESHOLD 太高</td><td>串口看 dynamic_mag 峰值，调低阈值到小于峰值</td></tr>
+</table>
+
+<h3>11.3 编译错误</h3>
+<table>
+<tr><th>错误</th><th>原因</th><th>修复</th></tr>
+<tr><td><code>variably modified 'xxx' at file scope</code></td><td>C23 中 <code>static const int</code> 非编译期常量</td><td>改为 <code>#define</code> 或 <code>enum</code></td></tr>
+<tr><td><code>unknown type name 'expression_id_t'</code></td><td>未 include face_model.h</td><td>确保 include 链正确：harti_config.h → face_model.h</td></tr>
+<tr><td><code>implicit declaration of function 'face_xxx'</code></td><td>未 include face_api.h</td><td>添加 <code>#include "face_api.h"</code></td></tr>
+<tr><td><code>undefined reference to 'SPRITE_XXX'</code></td><td>sprite_registry.c 中 include 了新头文件，但 CMakeLists 未添加</td><td>在 face_system/CMakeLists.txt 的 SRCS 中添加 .c 文件</td></tr>
+<tr><td>链接错误：函数重复定义</td><td>static inline 函数被多个 .c 包含且非 static</td><td>face_api.h 中所有函数都是 static inline，如果改为非 static 需移到 .c</td></tr>
+</table>
+
+<h3>11.4 运行时问题</h3>
+<table>
+<tr><th>症状</th><th>可能原因</th><th>排查步骤</th></tr>
+<tr><td>表情不切换</td><td>behavior_task 没收到事件</td><td>monitor 中找 "TAP detected" / "SHAKE detected"；没有则 sensor_task 有问题</td></tr>
+<tr><td>表情切换但无动画</td><td>LVGL tick 定时器未启动</td><td>检查 main.c 中 esp_timer 是否正确创建（1000us 周期）</td></tr>
+<tr><td>动画卡顿</td><td>渲染耗时太长</td><td>降低帧率 (DISPLAY_FRAME_MS 50→100) 或检查 SPI 速率</td></tr>
+<tr><td>栈溢出 (Guru Meditation)</td><td>task 栈不够</td><td>增大对应 task 的 STACK 值（harti_config.h），每次加 512 字节测试</td></tr>
+<tr><td>按键不切换 sprite</td><td>GPIO0 被温度 ADC 独占</td><td>app_input.c 同时用 GPIO 数字读取 + ADC 读取，确保 ADC1 配置不冲突</td></tr>
+<tr><td>sprite 切换后画面异常</td><td>新 sprite 的 eye_radius 等参数不匹配</td><td>检查 sprite 的 eye_radius / eye_half_spacing / mouth_y_center 等布局参数</td></tr>
+</table>
+
+<h3>11.5 调试技巧</h3>
+<ol>
+  <li><strong>看日志级别</strong>：修改 <code>sdkconfig</code> 中 <code>CONFIG_LOG_DEFAULT_LEVEL</code> 为 Debug 可以看到更详细的输出</li>
+  <li><strong>IMU 数据实时查看</strong>：串口 monitor 每 0.5s 输出原始加速度+陀螺仪数据，用来看阈值是否合理</li>
+  <li><strong>单独测试 sprite</strong>：修改 <code>face_api.h</code> 中 <code>face_init()</code> 的默认 sprite，重启即可看效果</li>
+  <li><strong>栈使用量</strong>：启用 <code>CONFIG_FREERTOS_GENERATE_RUN_TIME_STATS</code> 和 <code>uxTaskGetStackHighWaterMark()</code> 查看各任务实际栈使用</li>
+  <li><strong>单独测试某个表情</strong>：在 main.c 的 display_task 开头直接调用 <code>face_set_expression(N)</code>，绕过传感器</li>
+</ol>
+
+<h3>11.6 常用代码定位速查</h3>
+<table>
+<tr><th>想改什么</th><th>去哪个文件</th><th>找什么</th></tr>
+<tr><td>改表情外观</td><td><code>face_model.c</code></td><td><code>EXPRESSION_DEFS[id].target</code></td></tr>
+<tr><td>改动画时长/曲线</td><td><code>face_model.c</code></td><td><code>EXPRESSION_DEFS[id].timing</code></td></tr>
+<tr><td>改传感器灵敏度</td><td><code>harti_config.h</code></td><td><code>SHAKE_G_THRESHOLD</code> 等</td></tr>
+<tr><td>改行为逻辑</td><td><code>app_behavior.c</code></td><td><code>on_event()</code> switch 分支</td></tr>
+<tr><td>改任务优先级/栈</td><td><code>harti_config.h</code></td><td><code>DISPLAY_TASK_PRIO</code> 等</td></tr>
+<tr><td>改启动顺序</td><td><code>main.c</code></td><td><code>app_main()</code></td></tr>
+<tr><td>改渲染帧率</td><td><code>harti_config.h</code></td><td><code>DISPLAY_FRAME_MS</code></td></tr>
+<tr><td>改默认 sprite</td><td><code>sprite_registry.c</code></td><td><code>SPRITES[]</code> 数组第一项</td></tr>
+<tr><td>加新 sprite</td><td><code>sprite_registry.c</code></td><td><code>SPRITES[]</code> 数组末尾</td></tr>
+<tr><td>看 GPIO 分配</td><td><code>docs/resources.md</code></td><td>Summary of Harti GPIO Assignments</td></tr>
+</table>
+
+<hr>
+<footer style="text-align:center; color:var(--fg2); font-size:0.85rem; padding: 2rem 0;">
+  <p>Harti Technical Reference &middot; v2.1 &middot; 2026-05 &middot; ESP-IDF v6.0.1 &middot; ESP32-S3</p>
+</footer>
+
+</body>
+</html>
