@@ -11,8 +11,6 @@ extern "C" {
 
 typedef enum {
     EVT_NONE = 0,
-    EVT_TOUCH_HEAD,
-    EVT_TOUCH_RELEASE,
     EVT_SHAKE,
     EVT_TAP,
     EVT_FLIP,

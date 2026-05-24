@@ -1,21 +1,11 @@
 #include "app_behavior.h"
 #include "app_sensors.h"
-#include "app_display.h"
-#include "app_effects.h"
+#include "harti_config.h"
+#include "face_api.h"
 #include "esp_log.h"
 #include "freertos/task.h"
 
-extern volatile int g_tap_shake_frames;
-
 static const char *TAG = "behavior";
-
-#define BEHAVIOR_TASK_STACK 2048
-#define BEHAVIOR_TASK_PRIO  3
-
-#define IDLE_BORED_SEC  10   // 10s 无互动 → BORED
-#define IDLE_SLEEPY_SEC 30   // 30s 无互动 → SLEEPY
-#define SURPRISE_TIMEOUT_SEC 3   // SURPRISED 后 3s 无互动 → CONFUSED
-#define CONFUSED_TIMEOUT_SEC 5   // CONFUSED 后 5s 无互动 → IDLE
 
 typedef enum {
     STATE_IDLE,
@@ -32,30 +22,30 @@ typedef enum {
 
 static behavior_state_t current_state = STATE_IDLE;
 static TickType_t last_event_ticks;
-static TickType_t state_start_ticks; // 进入当前状态的时间
+static TickType_t state_start_ticks;
 
-// 辅助: 设置情绪并更新状态
+// Helper: set emotion and update state
 static void transition_to(behavior_state_t state, emotion_t emo) {
     current_state = state;
     state_start_ticks = xTaskGetTickCount();
-    display_set_emotion(emo);
+    face_set_expression((expression_id_t)emo);
 }
 
-// ── 空闲检查 (每秒调用) ─────────────────────────────
+// ── Idle check (called every second) ───────────────────────
 
 static void check_idle(void) {
     TickType_t now = xTaskGetTickCount();
     int elapsed_s = (now - last_event_ticks) * portTICK_PERIOD_MS / 1000;
     int state_elapsed_s = (now - state_start_ticks) * portTICK_PERIOD_MS / 1000;
 
-    // SURPRISED → CONFUSED 过渡 (摇晃/翻转后 3s 无新互动)
+    // SURPRISED → CONFUSED
     if (current_state == STATE_SURPRISED && state_elapsed_s >= SURPRISE_TIMEOUT_SEC) {
         transition_to(STATE_CONFUSED, EMOTION_CONFUSED);
         ESP_LOGI(TAG, "SURPRISED → CONFUSED (%ds)", state_elapsed_s);
         return;
     }
 
-    // CONFUSED → IDLE 过渡 (困惑 5s 后恢复)
+    // CONFUSED → IDLE
     if (current_state == STATE_CONFUSED && state_elapsed_s >= CONFUSED_TIMEOUT_SEC) {
         transition_to(STATE_IDLE, EMOTION_NEUTRAL);
         ESP_LOGI(TAG, "CONFUSED → IDLE (%ds)", state_elapsed_s);
@@ -71,52 +61,31 @@ static void check_idle(void) {
     }
 }
 
-// ── 传感器事件处理 ──────────────────────────────────
+// ── Sensor event handler ───────────────────────────────────
 
 static void on_event(const sensor_event_msg_t *msg) {
     last_event_ticks = xTaskGetTickCount();
 
-    // 任何交互从 BORED/SLEEPY 唤醒
+    // Any interaction wakes from BORED/SLEEPY
     bool was_idle = (current_state == STATE_BORED || current_state == STATE_SLEEPY);
 
     switch (msg->type) {
 
-    case EVT_TOUCH_HEAD:
-        if (was_idle) {
-            transition_to(STATE_IDLE, EMOTION_NEUTRAL);
-            break;
-        }
-        if (current_state != STATE_CONTENT && current_state != STATE_HAPPY) {
-            transition_to(STATE_HAPPY, EMOTION_HAPPY);
-        }
-        break;
-
-    case EVT_TOUCH_RELEASE:
-        if (current_state == STATE_HAPPY) {
-            // 持续摸头超过一段时间 → CONTENT (简化: 每次都检查)
-            transition_to(STATE_CONTENT, EMOTION_CONTENT);
-        } else if (current_state == STATE_CONTENT) {
-            transition_to(STATE_IDLE, EMOTION_NEUTRAL);
-        }
-        break;
-
     case EVT_SHAKE: {
-        // 方向区分: 0=全向→EXCITED, 1=水平→HAPPY, 2=垂直→SURPRISED
         if (was_idle) { transition_to(STATE_IDLE, EMOTION_NEUTRAL); break; }
-        if (msg->value >= 1.5f) {       // 垂直摇
+        if (msg->value >= 1.5f) {
             transition_to(STATE_SURPRISED, EMOTION_SURPRISED);
-        } else if (msg->value >= 0.5f) { // 水平摇
+        } else if (msg->value >= 0.5f) {
             transition_to(STATE_HAPPY, EMOTION_HAPPY);
-        } else {                         // 全向摇
+        } else {
             transition_to(STATE_SURPRISED, EMOTION_EXCITED);
         }
         break;
     }
 
     case EVT_TAP:
-        g_tap_shake_frames = 10; // ~200ms 眼睛抖动
         if (was_idle) { transition_to(STATE_IDLE, EMOTION_NEUTRAL); break; }
-        if (msg->value >= 2.0f) { // 连拍两次 → 委屈
+        if (msg->value >= 2.0f) {
             transition_to(STATE_SAD, EMOTION_SAD);
         }
         break;
@@ -127,19 +96,16 @@ static void on_event(const sensor_event_msg_t *msg) {
         break;
 
     case EVT_TWIST:
-        // 快速旋转 → 惊喜 + 星星特效
         if (was_idle) { transition_to(STATE_IDLE, EMOTION_NEUTRAL); break; }
         transition_to(STATE_SURPRISED, EMOTION_SURPRISED);
-        effects_trigger(EFFECT_STAR);
         ESP_LOGI(TAG, "TWIST → SURPRISED");
         break;
 
     case EVT_TILT:
-        // 倾斜方向: 0前/1左/2右→困惑, 3后→惊讶
         if (was_idle) { transition_to(STATE_IDLE, EMOTION_NEUTRAL); break; }
-        if (msg->value >= 2.5f) { // 后倾
+        if (msg->value >= 2.5f) {
             transition_to(STATE_SURPRISED, EMOTION_SURPRISED);
-        } else { // 前/左/右倾
+        } else {
             transition_to(STATE_CONFUSED, EMOTION_CONFUSED);
         }
         ESP_LOGI(TAG, "TILT dir=%.0f", msg->value);
@@ -155,22 +121,18 @@ static void on_event(const sensor_event_msg_t *msg) {
         break;
 
     case EVT_BLE_MEET:
-        effects_trigger(EFFECT_STAR);
+        ESP_LOGI(TAG, "BLE MEET");
         break;
 
     case EVT_BLE_FRIEND:
-        // value 字段携带关系等级 (0-4)
-        if (msg->value >= 4.0f)           effects_trigger(EFFECT_GOLDEN);
-        else if (msg->value >= 3.0f)      effects_trigger(EFFECT_RAINBOW);
-        else if (msg->value >= 2.0f)      effects_trigger(EFFECT_HEART_PARTICLE);
-        else                              effects_trigger(EFFECT_STAR);
+        ESP_LOGI(TAG, "BLE FRIEND level=%.0f", msg->value);
         break;
 
     default: break;
     }
 }
 
-// ── 行为任务入口 ─────────────────────────────────────
+// ── Behavior task entry ────────────────────────────────────
 
 static void behavior_task(void *arg) {
     QueueHandle_t queue = (QueueHandle_t)arg;
@@ -180,7 +142,7 @@ static void behavior_task(void *arg) {
 
     sensor_event_msg_t msg;
     while (1) {
-        // 阻塞等待事件, 超时 1 秒用于空闲计时
+        // Block on events, 1s timeout for idle checking
         if (xQueueReceive(queue, &msg, pdMS_TO_TICKS(1000))) {
             on_event(&msg);
         } else {
