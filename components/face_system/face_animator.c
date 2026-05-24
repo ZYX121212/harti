@@ -20,6 +20,7 @@ static void brow_params_lerp(const brow_params_t *a, const brow_params_t *b,
     out->tail.dx = a->tail.dx + (b->tail.dx - a->tail.dx) * t;
     out->tail.dy = a->tail.dy + (b->tail.dy - a->tail.dy) * t;
     out->thickness = a->thickness + (b->thickness - a->thickness) * t;
+    out->taper = a->taper + (b->taper - a->taper) * t;
 }
 
 static void eye_params_lerp(const eye_params_t *a, const eye_params_t *b,
@@ -34,6 +35,8 @@ static void eye_params_lerp(const eye_params_t *a, const eye_params_t *b,
     out->bot_lid_mid.dy = a->bot_lid_mid.dy + (b->bot_lid_mid.dy - a->bot_lid_mid.dy) * t;
     out->iris_center.dx = a->iris_center.dx + (b->iris_center.dx - a->iris_center.dx) * t;
     out->iris_center.dy = a->iris_center.dy + (b->iris_center.dy - a->iris_center.dy) * t;
+    out->position.dx = a->position.dx + (b->position.dx - a->position.dx) * t;
+    out->position.dy = a->position.dy + (b->position.dy - a->position.dy) * t;
     out->pupil_scale = a->pupil_scale + (b->pupil_scale - a->pupil_scale) * t;
     out->shine_intensity = a->shine_intensity + (b->shine_intensity - a->shine_intensity) * t;
     out->iris_detail = a->iris_detail + (b->iris_detail - a->iris_detail) * t;
@@ -57,11 +60,13 @@ static void mouth_params_lerp(const mouth_params_t *a, const mouth_params_t *b,
 
 static void decor_params_lerp(const decor_params_t *a, const decor_params_t *b,
                               float t, decor_params_t *out) {
-    out->blush = a->blush + (b->blush - a->blush) * t;
-    out->tears = a->tears + (b->tears - a->tears) * t;
-    out->stars = a->stars + (b->stars - a->stars) * t;
-    out->sweat = a->sweat + (b->sweat - a->sweat) * t;
+    out->blush   = a->blush   + (b->blush   - a->blush)   * t;
+    out->tears   = a->tears   + (b->tears   - a->tears)   * t;
+    out->stars   = a->stars   + (b->stars   - a->stars)   * t;
+    out->sweat   = a->sweat   + (b->sweat   - a->sweat)   * t;
     out->sparkle = a->sparkle + (b->sparkle - a->sparkle) * t;
+    out->prop_count = a->prop_count;
+    memcpy(out->props, a->props, sizeof(a->props));
 }
 
 typedef void (*lerp_func_t)(const void *a, const void *b, float t, void *out);
