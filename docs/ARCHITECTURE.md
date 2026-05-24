@@ -6,12 +6,27 @@
 harti/
 ├── main/
 │   ├── main.c              # 入口，创建 FreeRTOS 任务
-│   ├── app_display.c/h     # 表情渲染 + 微动画
+│   ├── harti_config.h      # 统一配置（常量/阈值/类型）
 │   ├── app_sensors.c/h     # 传感器事件检测
 │   ├── app_behavior.c/h    # 行为状态机 + 关系管理
+│   ├── app_input.c/h       # 物理输入（按键/触摸）
 │   └── app_ble.c/h         # BLE 碰一碰通信
 ├── components/
-│   ├── expressive_eyes/    # 眼睛渲染引擎 (扫描线方式，~480 字节内存)
+│   ├── face_system/        # 表情渲染引擎
+│   │   ├── face_api.h      # 公共 API（应用层唯一入口）
+│   │   ├── face_model.h/c  # 数据模型 + 表情预设
+│   │   ├── face_animator.h/c # 动画引擎（LVGL tween）
+│   │   ├── face_renderer.h/c # 渲染器（扫描线合成）
+│   │   ├── face_palette.h/c  # 调色板定义
+│   │   ├── face_common.h     # 内部工具函数
+│   │   └── sprites/          # sprite 资产
+│   │       ├── sprite_registry.h/c  # [唯一真相源] 管理所有 sprite
+│   │       ├── sprite_vector.c/h
+│   │       ├── sprite_lineart.c/h
+│   │       ├── sprite_classic.c/h
+│   │       ├── sprite_cat.c/h
+│   │       ├── sprite_pixel.c/h
+│   │       └── sprite_robot.c/h
 │   ├── gc9a01/             # GC9A01 LCD SPI 驱动
 │   ├── harti_imu/          # IMU 驱动 (MPU6050, I2C)
 │   └── harti_temp/         # 温度传感器驱动 (NTC + ADC)
@@ -19,40 +34,60 @@ harti/
 
 ---
 
+## 图层与依赖关系
+
+```
+应用编排层 (main/)
+    │
+    ├── app_behavior ──→ face_api.h ──→ face_animator / face_renderer
+    │                                       (不暴露 sprite 细节)
+    │
+    ├── app_input ──→ sprite_registry.h ──→ 各 sprite
+    │                 (只 registry 知道全部 sprite)
+    │
+    ├── app_sensors ──→ 驱动层 (harti_imu, harti_temp)
+    │
+    └── app_ble ──→ BLE 协议栈
+```
+
+核心原则：
+- **应用层不直接引用 sprite 头文件**：所有 sprite 访问通过 `sprite_registry`
+- **face_api.h 是 face_system 的唯一公共入口**：应用层不直接调用 `animator_*` / `renderer_*`
+- **harti_config.h 集中管理常量**：不在各模块重复定义
+
+---
+
 ## 核心模块
 
-### 1. app_display — 表情渲染
+### 1. face_system — 表情渲染
 
-**职责**: 管理表情状态、微动画、渲染输出
+**职责**: 管理表情状态、动画过渡、渲染输出
 
 **已实现**:
-- 扫描线渲染 (背景渐变、眼睛、虹膜、瞳孔、高光、边缘抗锯齿)
-- 装饰层 (腮红、眼泪、星星)
-- 13 种预设表情 + 双色主题 (白/黑)
-- 平滑过渡 (ease-out-cubic)
-- 微动画 (眨眼、呼吸、微扫视)
+- 扫描线渲染（8 层合成：脸部、腮红、嘴、左右眼、左右眉、装饰）
+- 参数化面部模型（脸型、眉、眼、嘴、装饰 5 类 component）
+- 13 种预设表情 + 6 种 sprite 风格
+- LVGL tween 驱动的平滑过渡（5 种缓动路径）
+- 微动画（眨眼、呼吸、微扫视）
 
-**待新增**:
-- 碰一碰特效动画 (心心、彩虹、金光)
-- 温度表盘模式
-- 时间感知 (早中晚不同默认表情)
+**sprite registry 模式**:
+```c
+// 唯一真相源: sprite_registry.c
+static const sprite_set_t *const SPRITES[] = {
+    &SPRITE_VECTOR, &SPRITE_LINEART, &SPRITE_CLASSIC,
+    &SPRITE_CAT, &SPRITE_PIXEL, &SPRITE_ROBOT,
+};
+
+// 加新 sprite：只需创建 sprite_xxx.c/h + 在上方数组添加一行
+```
 
 ```c
-// 表情枚举 (扩展后)
+// 表情枚举
 typedef enum {
     EMOTION_NEUTRAL = 0,
-    EMOTION_HAPPY,
-    EMOTION_SAD,
-    EMOTION_SURPRISED,
-    EMOTION_SLEEPY,
-    EMOTION_ANGRY,
-    EMOTION_BORED,
-    EMOTION_EXCITED,
-    EMOTION_CONFUSED,     // 新增: 摇晃后
-    EMOTION_CONTENT,      // 新增: 持续摸头
-    EMOTION_COLD,         // 新增: 低温
-    EMOTION_WARM,         // 新增: 被捂热
-    EMOTION_HEART_EYES,   // 新增: 挚友碰面
+    EMOTION_HAPPY, EMOTION_SAD, EMOTION_SURPRISED, EMOTION_SLEEPY,
+    EMOTION_ANGRY, EMOTION_BORED, EMOTION_EXCITED, EMOTION_CONFUSED,
+    EMOTION_CONTENT, EMOTION_COLD, EMOTION_WARM, EMOTION_HEART_EYES,
     EMOTION_COUNT
 } emotion_t;
 ```
@@ -62,18 +97,12 @@ typedef enum {
 **职责**: 采集传感器数据，检测交互事件，通过队列发送给行为模块
 
 ```c
-// 传感器事件
 typedef enum {
-    EVT_TOUCH_HEAD,      // 摸头
-    EVT_TOUCH_RELEASE,   // 手离开
-    EVT_SHAKE,           // 摇晃
-    EVT_TAP,             // 轻拍
-    EVT_FLIP,            // 翻转
-    EVT_WARM_UP,         // 温度上升 (被捂热)
-    EVT_COLD_DOWN,       // 温度骤降
-    EVT_BLE_MEET,        // 碰一碰遇到新朋友
-    EVT_BLE_FRIEND,      // 碰一碰遇到老朋友
-    EVT_NONE
+    EVT_NONE = 0,
+    EVT_SHAKE, EVT_TAP, EVT_FLIP,
+    EVT_WARM_UP, EVT_COLD_DOWN,
+    EVT_BLE_MEET, EVT_BLE_FRIEND,
+    EVT_TWIST, EVT_TILT,
 } sensor_event_t;
 ```
 
@@ -126,7 +155,7 @@ app_sensors (事件检测, 100Hz)
     v
 app_behavior (状态机决策)
     │
-    ├──> app_display (set_emotion)
+    ├──> face_set_expression() ──> face_system 渲染
     │
     ├──> app_ble (碰一碰事件)
     │       │
@@ -142,9 +171,10 @@ app_behavior (状态机决策)
 
 | 任务 | 优先级 | 栈大小 | 频率 | 职责 |
 |------|--------|--------|------|------|
-| `display_task` | High (5) | 4KB | 60fps | 渲染 + 微动画 |
+| `display_task` | High (5) | 4KB | 20fps | 动画 + 渲染 |
 | `sensor_task` | Medium (3) | 2KB | 100Hz | IMU/触摸/温度采样 |
 | `behavior_task` | Medium (3) | 2KB | 事件驱动 | 状态机决策 |
+| `input_task` | Medium (3) | 2KB | 30ms | 按键检测 + sprite 轮换 |
 | `ble_task` | Low (1) | 3KB | 事件驱动 | BLE 扫描/连接 |
 
 队列:
@@ -153,8 +183,6 @@ app_behavior (状态机决策)
 ---
 
 ## 渲染引擎优化
-
-expressive_eyes 组件的关键优化:
 
 | 优化项 | 方法 | 效果 |
 |--------|------|------|
