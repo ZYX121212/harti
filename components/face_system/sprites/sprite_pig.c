@@ -4,7 +4,6 @@
 #include <math.h>
 
 #define SCREEN_W 240
-#define SCREEN_H 240
 #define CENTER_X 120
 #define CENTER_Y 120
 
@@ -169,7 +168,7 @@ static void draw_face(int y, const face_state_t *st, const sprite_set_t *sp, uin
         int sx1 = (int)(SNOUT_CX + sxspan);
         if (sx0 < 0) sx0 = 0;
         if (sx1 >= SCREEN_W) sx1 = SCREEN_W - 1;
-        for (int x = sx0; x <= sx1; x++) buf[x] = pal[PAL_TONGUE];
+        for (int x = sx0; x <= sx1; x++) buf[x] = pal[PAL_SKIN];
         /* Black outline ring at ellipse edge */
         for (int x = sx0; x <= sx1; x++) {
             float nx = (float)(x - SNOUT_CX) / SNOUT_RX;
