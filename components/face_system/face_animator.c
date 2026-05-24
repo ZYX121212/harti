@@ -65,8 +65,14 @@ static void decor_params_lerp(const decor_params_t *a, const decor_params_t *b,
     out->stars   = a->stars   + (b->stars   - a->stars)   * t;
     out->sweat   = a->sweat   + (b->sweat   - a->sweat)   * t;
     out->sparkle = a->sparkle + (b->sparkle - a->sparkle) * t;
-    out->prop_count = a->prop_count;
-    memcpy(out->props, a->props, sizeof(a->props));
+    /* Apply target props at t=1 only if the target expression
+       explicitly defines props (e.g. HAPPY has PROP_MUSIC_NOTE).
+       Otherwise keep runtime props from face_prop_show.
+       Clearing is handled by face_prop_clear() in transition_to(). */
+    if (t >= 1.0f && b->prop_count > 0) {
+        out->prop_count = b->prop_count;
+        memcpy(out->props, b->props, sizeof(b->props));
+    }
 }
 
 typedef void (*lerp_func_t)(const void *a, const void *b, float t, void *out);

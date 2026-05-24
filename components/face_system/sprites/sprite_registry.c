@@ -9,8 +9,6 @@
 #include "sprite_pig.h"
 #include "sprite_chibi.h"
 
-// Single source of truth for all available sprites.
-// To add a new sprite: import its header and add it to this array.
 static const sprite_set_t *const SPRITES[] = {
     &SPRITE_VECTOR,
     &SPRITE_LINEART,

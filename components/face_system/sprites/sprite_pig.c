@@ -350,6 +350,7 @@ static void draw_props(int y, const face_state_t *st,
         case PROP_HAND:       color = sp->pal[PAL_SKIN];  break;
         case PROP_STAR_SMALL: color = sp->pal[PAL_STAR];  break;
         case PROP_SWEAT_DROP: color = sp->pal[PAL_TEAR];  break;
+        case PROP_FINGER_HEART: color = sp->pal[PAL_SCLERA]; break;
         default: continue;
         }
 
@@ -359,6 +360,7 @@ static void draw_props(int y, const face_state_t *st,
         case PROP_HAND:       draw_hand_scan(y, px, py, sz, color, buf, SCREEN_W); break;
         case PROP_STAR_SMALL: draw_star_scan(y, px, py, sz, color, buf, SCREEN_W); break;
         case PROP_SWEAT_DROP: draw_sweat_scan(y, px, py, sz, color, buf, SCREEN_W); break;
+        case PROP_FINGER_HEART: draw_finger_heart_scan(y, px, py, sz, color, buf, SCREEN_W); break;
         default: break;
         }
     }

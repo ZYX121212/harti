@@ -22,6 +22,7 @@ typedef enum {
     EMOTION_COLD,
     EMOTION_WARM,
     EMOTION_HEART_EYES,
+    EMOTION_THINKING,
     EMOTION_COUNT
 } emotion_t;
 
@@ -84,6 +85,9 @@ typedef enum {
 #define IDLE_SLEEPY_SEC         30      // 30s 无互动 → SLEEPY
 #define SURPRISE_TIMEOUT_SEC    3       // SURPRISED 后 3s → CONFUSED
 #define CONFUSED_TIMEOUT_SEC    5       // CONFUSED 后 5s → IDLE
+#define THINKING_TIMEOUT_SEC    4       // THINKING 后 4s → IDLE
+#define HAPPY_TIMEOUT_SEC       4       // HAPPY 后 4s → CONTENT
+#define CONTENT_TIMEOUT_SEC     5       // CONTENT 后 5s → IDLE
 
 /* ── Display ─────────────────────────────────────────────── */
 

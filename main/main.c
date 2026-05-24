@@ -4,6 +4,7 @@
 #include "esp_log.h"
 
 #include "harti_config.h"
+#include "harti_temp.h"
 #include "app_input.h"
 #include "app_sensors.h"
 #include "app_behavior.h"
@@ -64,6 +65,7 @@ void app_main(void) {
                 NULL, DISPLAY_TASK_PRIO, NULL);
 
     // Sensors / input / BLE / behavior delayed start
+    temp_init();  // ADC init must complete before input task reads it
     QueueHandle_t sensor_queue = sensors_start();
     input_start();
     ble_start();

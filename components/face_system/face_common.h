@@ -5,6 +5,10 @@
 #include <math.h>
 #include <stdbool.h>
 
+#define IMG1_240_WIDTH  240
+#define IMG1_240_HEIGHT 240
+extern const uint8_t img1_240_data[7200];
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -711,7 +715,6 @@ static inline void draw_star_scan(int y, float cx, float cy, float size,
 /** Sweat drop: circle top + pointed bottom. */
 static inline void draw_sweat_scan(int y, float cx, float cy, float size,
                                     uint16_t color, uint16_t *buf, int screen_w) {
-    float dy = (float)(y - cy);
     float r = size * 0.28f;
     float tip_y = cy + size * 0.45f;
     float circle_cy = cy - size * 0.08f;
@@ -732,6 +735,241 @@ static inline void draw_sweat_scan(int y, float cx, float cy, float size,
     int xl = (int)(cx - hw); if (xl < 0) xl = 0;
     int xr = (int)(cx + hw); if (xr >= screen_w) xr = screen_w - 1;
     for (int x = xl; x <= xr; x++) buf[x] = color;
+}
+
+/** Teacup with steam: trapezoid cup body + elliptical rim + handle arc + 3 wavy steam lines. */
+static inline void draw_teacup_steam_scan(int y, float cx, float cy, float size,
+					   uint16_t color, uint16_t *buf, int screen_w) {
+	float rx = size * 0.48f, ry = size * 0.28f;
+	float cup_top = cy - ry;
+	float cup_bot = cy + ry * 1.4f;
+	float cup_rx_top = rx;
+	float cup_rx_bot = rx * 0.78f;
+
+	/* Cup body: filled trapezoid scanline */
+	if (y >= (int)cup_top && y <= (int)cup_bot) {
+		float t = (float)(y - cup_top) / (cup_bot - cup_top);
+		float span = cup_rx_top + (cup_rx_bot - cup_rx_top) * t;
+		int xl = (int)(cx - span); if (xl < 0) xl = 0;
+		int xr = (int)(cx + span); if (xr >= screen_w) xr = screen_w - 1;
+		if (y > (int)cup_top + 2) {
+			for (int x = xl; x <= xr; x++) buf[x] = color;
+		}
+	}
+
+	/* Rim ellipse */
+	float nydy = (float)(y - cup_top) / (ry * 0.28f);
+	if (fabsf(nydy) < 1.0f) {
+		float span = rx * sqrtf(1.0f - nydy * nydy);
+		int xl = (int)(cx - span); if (xl < 0) xl = 0;
+		int xr = (int)(cx + span); if (xr >= screen_w) xr = screen_w - 1;
+		for (int x = xl; x <= xr; x++) buf[x] = color;
+	}
+
+	/* Handle on right side */
+	float h0 = cup_top + ry * 0.6f, h1 = cup_bot - ry * 0.2f;
+	if (y >= (int)h0 && y <= (int)h1) {
+		float ht = (float)(y - h0) / (h1 - h0);
+		float hx = cx + cup_rx_top + sinf(ht * 3.14159265f) * size * 0.12f;
+		for (int dx = -1; dx <= 1; dx++) {
+			int px = (int)(hx) + dx;
+			if (px >= 0 && px < screen_w) buf[px] = color;
+		}
+	}
+
+	/* 3 wavy steam lines */
+	float steam_y0 = cup_top - size * 0.1f;
+	for (int s = 0; s < 3; s++) {
+		float sx0 = cx - size * 0.12f + s * size * 0.12f;
+		float freq = 0.08f + s * 0.02f;
+		for (int dy = 0; dy < (int)(size * 0.8f); dy++) {
+			int sy = (int)(steam_y0 - dy);
+			if (y != sy) continue;
+			float sway = sinf(dy * freq) * size * 0.06f;
+			int px = (int)(sx0 + sway);
+			if (px >= 0 && px < screen_w) buf[px] = color;
+			if (px + 1 < screen_w) buf[px + 1] = color;
+		}
+	}
+}
+
+/** Double music note: two note heads (ellipses) + stems + flags. */
+static inline void draw_music_note_scan(int y, float cx, float cy, float size,
+					 uint16_t color, uint16_t *buf, int screen_w) {
+	/* Primary note head */
+	float n1_cx = cx - size * 0.2f, n1_cy = cy + size * 0.2f;
+	float n1_rx = size * 0.32f, n1_ry = size * 0.2f;
+	float ndy1 = (float)(y - n1_cy) / n1_ry;
+	if (fabsf(ndy1) < 1.0f) {
+		float span = n1_rx * sqrtf(1.0f - ndy1 * ndy1);
+		int xl = (int)(n1_cx - span); if (xl < 0) xl = 0;
+		int xr = (int)(n1_cx + span); if (xr >= screen_w) xr = screen_w - 1;
+		for (int x = xl; x <= xr; x++) buf[x] = color;
+	}
+
+	/* Primary stem */
+	int stem_x = (int)(n1_cx + n1_rx);
+	int stem_top = (int)(n1_cy - size * 0.9f);
+	int stem_bot = (int)(n1_cy);
+	if (y >= stem_top && y <= stem_bot) {
+		int px = stem_x;
+		if (px >= 0 && px < screen_w) buf[px] = color;
+		if (px + 1 < screen_w) buf[px + 1] = color;
+	}
+
+	/* Primary flag */
+	if (y >= stem_top && y <= stem_top + (int)(size * 0.5f)) {
+		float ft = (float)(y - stem_top) / (size * 0.5f);
+		float fx = stem_x + ft * size * 0.45f;
+		float fy_curve = stem_top + (1.0f - ft) * (1.0f - ft) * size * 0.1f;
+		if (fabsf(y - fy_curve - stem_top) < 2.0f || fabsf(y - (stem_top + ft * size * 0.5f)) < 1.5f) {
+			for (int dx = 0; dx <= (int)(ft * size * 0.4f); dx++) {
+				int px = stem_x + dx;
+				if (px >= 0 && px < screen_w) buf[px] = color;
+			}
+		}
+	}
+
+	/* Secondary note head (smaller, offset right-down) */
+	float n2_cx = cx + size * 0.45f, n2_cy = cy + size * 0.1f;
+	float n2_rx = size * 0.22f, n2_ry = size * 0.14f;
+	float ndy2 = (float)(y - n2_cy) / n2_ry;
+	if (fabsf(ndy2) < 1.0f) {
+		float span = n2_rx * sqrtf(1.0f - ndy2 * ndy2);
+		int xl = (int)(n2_cx - span); if (xl < 0) xl = 0;
+		int xr = (int)(n2_cx + span); if (xr >= screen_w) xr = screen_w - 1;
+		for (int x = xl; x <= xr; x++) buf[x] = color;
+	}
+
+	/* Secondary stem */
+	int s2_x = (int)(n2_cx + n2_rx);
+	int s2_top = (int)(n2_cy - size * 0.7f);
+	if (y >= s2_top && y <= (int)n2_cy) {
+		if (s2_x >= 0 && s2_x < screen_w) buf[s2_x] = color;
+		if (s2_x + 1 < screen_w) buf[s2_x + 1] = color;
+	}
+
+	/* Secondary flag */
+	if (y >= s2_top && y <= s2_top + (int)(size * 0.35f)) {
+		float ft = (float)(y - s2_top) / (size * 0.35f);
+		for (int dx = 0; dx <= (int)(ft * size * 0.35f); dx++) {
+			int px = s2_x + dx;
+			if (px >= 0 && px < screen_w) buf[px] = color;
+		}
+	}
+}
+
+/** Sunglasses: two rounded rectangle lenses + bridge + temples. */
+static inline void draw_sunglasses_scan(int y, float cx, float cy, float size,
+					 uint16_t color, uint16_t *buf, int screen_w) {
+	float lens_w = size * 0.5f, lens_h = size * 0.35f;
+	float gap = size * 0.08f;
+	float lens_cy = cy;
+
+	/* Left lens */
+	float lx = cx - lens_w - gap, ly = lens_cy - lens_h * 0.5f;
+	if (y >= (int)ly && y <= (int)(ly + lens_h)) {
+		int xl = (int)lx, xr = (int)(lx + lens_w);
+		if (xl < 0) xl = 0;
+		if (xr >= screen_w) xr = screen_w - 1;
+		for (int x = xl; x <= xr; x++) buf[x] = color;
+	}
+
+	/* Right lens */
+	float rx = cx + gap, ry2 = lens_cy - lens_h * 0.5f;
+	if (y >= (int)ry2 && y <= (int)(ry2 + lens_h)) {
+		int xl = (int)rx, xr = (int)(rx + lens_w);
+		if (xl < 0) xl = 0;
+		if (xr >= screen_w) xr = screen_w - 1;
+		for (int x = xl; x <= xr; x++) buf[x] = color;
+	}
+
+	/* Bridge horizontal line */
+	int bridge_y = (int)(lens_cy);
+	if (y == bridge_y || y == bridge_y - 1 || y == bridge_y + 1) {
+		int bl = (int)(lx + lens_w), br = (int)rx;
+		if (bl < 0) bl = 0;
+		if (br >= screen_w) br = screen_w - 1;
+		for (int x = bl; x <= br; x++) buf[x] = color;
+	}
+
+	/* Temples */
+	int temple_y = (int)(lens_cy - lens_h * 0.2f);
+	if (y == temple_y || y == temple_y - 1) {
+		/* Left temple */
+		int tl = (int)(lx - size * 0.22f), tr2 = (int)lx;
+		if (tl < 0) tl = 0;
+		for (int x = tl; x <= tr2; x++) buf[x] = color;
+		/* Right temple */
+		int rl = (int)(rx + lens_w), rr = (int)(rx + lens_w + size * 0.22f);
+		if (rr >= screen_w) rr = screen_w - 1;
+		for (int x = rl; x <= rr; x++) buf[x] = color;
+	}
+}
+
+
+/** Finger heart: vector outline of a finger-heart gesture.
+ *  Draws a clean heart shape (parametric curve) plus two thumb lines at the bottom,
+ *  all as thin white strokes with no background fill. */
+static inline void draw_finger_heart_scan(int y, float cx, float cy, float size,
+                                          uint16_t color, uint16_t *buf, int screen_w) {
+    float thick = 2.5f;
+    float scale = size / 16.0f;
+
+    /* ── Heart outline via parametric equation ───────────────── */
+    int y0 = (int)(cy - size * 0.95f);
+    int y1 = (int)(cy + size * 0.65f);
+
+    if (y >= y0 && y <= y1) {
+        float prev_px = 0.0f, prev_py = 0.0f;
+        bool has_prev = false;
+
+        for (int i = 0; i <= 360; i++) {
+            float t = (float)i * 0.0174533f;  /* i * π/180 */
+            float st = sinf(t);
+            float hx = 16.0f * st * st * st;
+            float hy = -(13.0f * cosf(t) - 5.0f * cosf(2.0f * t)
+                       - 2.0f * cosf(3.0f * t) - cosf(4.0f * t));
+
+            float px = cx + hx * scale;
+            float py = cy + hy * scale * 0.78f;
+
+            if (has_prev) {
+                float ymin = prev_py < py ? prev_py : py;
+                float ymax = prev_py > py ? prev_py : py;
+                if ((float)y >= ymin - thick && (float)y <= ymax + thick) {
+                    float denom = py - prev_py;
+                    float t_seg = (fabsf(denom) > 0.001f) ? ((float)y - prev_py) / denom : 0.5f;
+                    if (t_seg >= -0.1f && t_seg <= 1.1f) {
+                        float ix = prev_px + (px - prev_px) * t_seg;
+                        int xi = (int)(ix + 0.5f);
+                        for (int d = -1; d <= 1; d++) {
+                            int xd = xi + d;
+                            if (xd >= 0 && xd < screen_w) buf[xd] = color;
+                        }
+                    }
+                }
+            }
+            prev_px = px;
+            prev_py = py;
+            has_prev = true;
+        }
+    }
+
+    /* ── Thumb lines below the heart ─────────────────────────── */
+    float thumb_top = cy + size * 0.38f;
+    float thumb_bot = cy + size * 0.62f;
+    if (y >= (int)thumb_top && y <= (int)thumb_bot) {
+        float t = ((float)y - thumb_top) / (thumb_bot - thumb_top);
+        float lx = cx + t * (-size * 0.18f);
+        float rx = cx + t * (size * 0.18f);
+        for (int d = -1; d <= 1; d++) {
+            int xl = (int)(lx + 0.5f) + d;
+            int xr = (int)(rx + 0.5f) + d;
+            if (xl >= 0 && xl < screen_w) buf[xl] = color;
+            if (xr >= 0 && xr < screen_w) buf[xr] = color;
+        }
+    }
 }
 
 #ifdef __cplusplus

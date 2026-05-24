@@ -714,7 +714,11 @@ static void draw_props(int y, const face_state_t *st,
         case PROP_TEACUP:     raw_color = sp->pal[PAL_SKIN];  break;
         case PROP_HAND:       raw_color = sp->pal[PAL_SKIN];  break;
         case PROP_STAR_SMALL: raw_color = sp->pal[PAL_STAR];  break;
-        case PROP_SWEAT_DROP: raw_color = sp->pal[PAL_TEAR];  break;
+        case PROP_SWEAT_DROP:   raw_color = sp->pal[PAL_TEAR];  break;
+        case PROP_TEACUP_STEAM: raw_color = sp->pal[PAL_SKIN];  break;
+        case PROP_MUSIC_NOTE:   raw_color = sp->pal[PAL_STAR];  break;
+        case PROP_SUNGLASSES:   raw_color = sp->pal[PAL_BROW];  break;
+        case PROP_FINGER_HEART: raw_color = sp->pal[PAL_SCLERA]; break;
         default: continue;
         }
 
@@ -726,6 +730,10 @@ static void draw_props(int y, const face_state_t *st,
         case PROP_HAND:       draw_hand_scan(y, px, py, sz, color, buf, SCREEN_W); break;
         case PROP_STAR_SMALL: draw_star_scan(y, px, py, sz, color, buf, SCREEN_W); break;
         case PROP_SWEAT_DROP: draw_sweat_scan(y, px, py, sz, color, buf, SCREEN_W); break;
+        case PROP_TEACUP_STEAM: draw_teacup_steam_scan(y, px, py, sz, color, buf, SCREEN_W); break;
+        case PROP_MUSIC_NOTE:   draw_music_note_scan(y, px, py, sz, color, buf, SCREEN_W); break;
+        case PROP_SUNGLASSES:   draw_sunglasses_scan(y, px, py, sz, color, buf, SCREEN_W); break;
+        case PROP_FINGER_HEART: draw_finger_heart_scan(y, px, py, sz, color, buf, SCREEN_W); break;
         default: break;
         }
     }
@@ -737,7 +745,7 @@ const sprite_set_t SPRITE_VECTOR = {
     .name = "vector",
     .eye_radius = 40.0f,
     .eye_half_spacing = 50.0f,
-    .mouth_y_center = 40.0f,
+    .mouth_y_center = 60.0f,
     .brow_y_offset = -38.0f,
     .blush_y_offset = 35.0f,
     .draw_face = draw_face,

@@ -22,6 +22,9 @@ static bool cali_enabled;
 
 esp_err_t temp_init(void)
 {
+    static bool initialized = false;
+    if (initialized) return ESP_OK;
+
     adc_oneshot_unit_init_cfg_t init_cfg = {
         .unit_id = ADC_UNIT,
     };
@@ -58,6 +61,7 @@ esp_err_t temp_init(void)
     }
 
     ESP_LOGI(TAG, "harti_temp initialized");
+    initialized = true;
     return ESP_OK;
 }
 

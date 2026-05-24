@@ -64,6 +64,10 @@ typedef enum {
     PROP_HAND,
     PROP_STAR_SMALL,
     PROP_SWEAT_DROP,
+    PROP_TEACUP_STEAM,
+    PROP_MUSIC_NOTE,
+    PROP_SUNGLASSES,
+    PROP_FINGER_HEART,
     PROP_COUNT
 } prop_type_t;
 
