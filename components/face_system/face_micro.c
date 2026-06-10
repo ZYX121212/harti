@@ -291,19 +291,20 @@ void micro_animator_init(void) {
 
 void micro_animator_set_expression(expression_id_t id) {
     if (id == current_expr_id) return;
+    uint32_t now = lv_tick_get();
     current_expr_id = id;
     /* Reset expression-linked state machines */
     sigh_phase = SIGH_IDLE;
-    next_sigh_at = lv_tick_get() + rand_ms(3000, 8000);
+    next_sigh_at = now + rand_ms(3000, 8000);
     startle_phase = STARTLE_IDLE;
-    next_startle_at = lv_tick_get() + rand_ms(5000, 12000);
+    next_startle_at = now + rand_ms(5000, 12000);
 
     /* Trigger entry impact */
     if (id < (expression_id_t)(sizeof(IMPACT_TABLE) / sizeof(IMPACT_TABLE[0]))) {
         const impact_cfg_t *cfg = &IMPACT_TABLE[id];
         if (cfg->duration_ms > 0) {
             g_impact.active      = true;
-            g_impact.start_ms    = lv_tick_get();
+            g_impact.start_ms    = now;
             g_impact.duration_ms = cfg->duration_ms;
             g_impact.sq_peak     = cfg->sq_peak;
             g_impact.st_peak     = cfg->st_peak;
@@ -764,11 +765,13 @@ void micro_animator_apply(face_state_t *s) {
                     float t1 = (float)elapsed / (float)g_impact.peak2_ms;
                     e1 = sinf(t1 * 3.14159265f);
                 }
-                if (elapsed >= g_impact.peak2_ms) {
-                    float t2 = (float)(elapsed - g_impact.peak2_ms)
-                             / (float)(g_impact.duration_ms - g_impact.peak2_ms);
-                    t2 = clampf(t2, 0.0f, 1.0f);
-                    e2 = sinf(t2 * 3.14159265f);
+                if (g_impact.peak2_ms < g_impact.duration_ms) {  /* guard: prevent underflow */
+                    if (elapsed >= g_impact.peak2_ms) {
+                        float t2 = (float)(elapsed - g_impact.peak2_ms)
+                                 / (float)(g_impact.duration_ms - g_impact.peak2_ms);
+                        t2 = clampf(t2, 0.0f, 1.0f);
+                        e2 = sinf(t2 * 3.14159265f);
+                    }
                 }
                 s->face.squash_x  += g_impact.sq_peak * e1 + g_impact.sq2_peak * e2;
                 s->face.stretch_y += g_impact.st_peak * e1 + g_impact.st2_peak * e2;
