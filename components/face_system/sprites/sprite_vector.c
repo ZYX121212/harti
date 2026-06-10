@@ -13,7 +13,8 @@
 
 typedef enum {
     V_SMILE, V_SURPRISE, V_SAD, V_ANGRY, V_SLEEPY,
-    V_LAUGH, V_KISS, V_NEUTRAL, V_TALK, V_CONFUSED
+    V_LAUGH, V_KISS, V_NEUTRAL, V_TALK, V_CONFUSED,
+    V_DIZZY   // ⑪ O-ring mouth — DIZZY
 } mouth_type_t;
 
 typedef enum {
@@ -25,6 +26,8 @@ typedef enum {
     V_EYE_ANGRY,       // ⑥ Angular eye — ANGRY
     V_EYE_BORED,       // ⑦ Half-lidded eye — BORED, WARM
     V_EYE_SLEEPY,      // ⑧ Horizontal-line eye — SLEEPY
+    V_EYE_DIZZY,        // ⑨ Star-pupil — DIZZY
+    V_EYE_UPSIDE_DOWN,  // ⑩ Teary — UPSIDE_DOWN
 } eye_type_t;
 
 /* ── Mouth classifier ──────────────────────────────────────── */
@@ -39,6 +42,8 @@ static mouth_type_t classify_mouth(const mouth_params_t *mp, const eye_params_t 
     if (cupid > 0.62f && o > 0.06f && ep->pupil_scale < 0.12f) return V_KISS;
     if (o > 0.18f && cupid > 0.55f && cdy < -0.03f) return V_LAUGH;
     if (o > 0.22f) return V_SURPRISE;
+    /* ⑪ DIZZY O-ring: narrow openness + shallow cupid (before V_TALK) */
+    if (o > 0.12f && o < 0.22f && cupid < 0.22f) return V_DIZZY;
     if (o > 0.12f) return V_TALK;
     /* Expanded smile: corner lift OR horizontal stretch + deep cupid (HAPPY) */
     if (cdy < -0.04f || (fabsf(mp->left_corner.dx) > 0.15f && cupid > 0.55f)) return V_SMILE;
@@ -52,6 +57,9 @@ static mouth_type_t classify_mouth(const mouth_params_t *mp, const eye_params_t 
 static eye_type_t classify_eye(const eye_params_t *ep, const brow_params_t *bp) {
     /* ⑧ SLEEPY: top lid heavily drooped */
     if (ep->top_lid_mid.dy > 0.22f) return V_EYE_SLEEPY;
+
+    /* ⑨ DIZZY: star pupils — iris_detail=1.0f is the internal flag */
+    if (ep->pupil_scale < 0.05f && ep->iris_detail > 0.95f) return V_EYE_DIZZY;
 
     /* ⑤ HEART: pupil scaled to near-zero → heart pupil */
     if (ep->pupil_scale < 0.05f) return V_EYE_HEART;
@@ -70,6 +78,9 @@ static eye_type_t classify_eye(const eye_params_t *ep, const brow_params_t *bp) 
 
     /* ② HAPPY: bottom lid pushed up (squint) + top lid slightly down */
     if (ep->bot_lid_mid.dy > 0.08f && ep->top_lid_mid.dy < -0.04f) return V_EYE_HAPPY;
+
+    /* ⑩ UPSIDE_DOWN: iris_detail=0.9f is the internal flag */
+    if (ep->iris_detail > 0.85f) return V_EYE_UPSIDE_DOWN;
 
     /* ① NORMAL: default round eye */
     return V_EYE_NORMAL;
@@ -283,6 +294,60 @@ static void draw_eye_vector(int y, const eye_params_t *ep, float eye_r,
         }
         break;
     }
+
+    /* ── ⑨ DIZZY: white ring + 5-pointed star fill ── */
+        case V_EYE_DIZZY: {
+            /* White ring + 5-pointed star fill inside */
+            float eye_r_sq = eye_r * eye_r;
+            for (int x = x_start; x <= x_end; x++) {
+                float fx = (float)(x - eye_cx);
+                float r_sq = fx * fx + fy * fy;
+                if (r_sq >= eye_r_sq) continue;
+                float r = sqrtf(r_sq);
+                /* Ring border (~2px) */
+                if (eye_r - r < 2.2f) { buf[x] = pal[PAL_SCLERA]; continue; }
+                /* 5-pointed star via angular sector math */
+                float ang = atan2f(fy, fx);
+                float sector = _fmodf(ang * 5.0f / (2.0f * 3.14159265f) + 10.0f, 1.0f);
+                float outer_r = eye_r * 0.55f;
+                float inner_r = eye_r * 0.22f;
+                float r_limit;
+                if (sector < 0.5f) {
+                    r_limit = outer_r * (1.0f - sector * 2.0f) + inner_r * sector * 2.0f;
+                } else {
+                    r_limit = inner_r + (outer_r - inner_r) * (sector - 0.5f) * 2.0f;
+                }
+                if (r_sq <= r_limit * r_limit) buf[x] = pal[PAL_SCLERA];
+            }
+            break;
+        }
+
+    /* ── ⑩ UPSIDE_DOWN: white ring + Bayer tear fill in lower half + offset pupil ── */
+        case V_EYE_UPSIDE_DOWN: {
+            /* White ring + tear dither in lower half + sunken pupil */
+            float eye_r_sq = eye_r * eye_r;
+            float pupil_dx = ep->iris_center.dx * eye_r * 0.5f;
+            float pupil_dy = ep->iris_center.dy * eye_r * 0.6f;
+            float pupil_r  = eye_r * 0.28f;
+            float pupil_r_sq = pupil_r * pupil_r;
+            for (int x = x_start; x <= x_end; x++) {
+                float fx = (float)(x - eye_cx);
+                float r_sq = fx * fx + fy * fy;
+                if (r_sq >= eye_r_sq) continue;
+                float r = sqrtf(r_sq);
+                /* Ring border */
+                if (eye_r - r < 2.2f) { buf[x] = pal[PAL_SCLERA]; continue; }
+                /* Lower-half Bayer tear fill */
+                if (fy > 0.0f) {
+                    float tear_t = fy / eye_r;
+                    if (bayer_accept(x, y, tear_t * 0.45f)) { buf[x] = pal[PAL_SCLERA]; continue; }
+                }
+                /* Pupil shifted down */
+                float p_dx = fx - pupil_dx, p_dy = fy - pupil_dy;
+                if (p_dx * p_dx + p_dy * p_dy < pupil_r_sq) buf[x] = pal[PAL_PUPIL];
+            }
+            break;
+        }
 
     /* ── ① NORMAL: white outline + pupil + limbal ring + dual catchlight + eyelashes (unchanged) ── */
     case V_EYE_NORMAL:
@@ -524,6 +589,23 @@ static void draw_mouth(int y, const face_state_t *st, const sprite_set_t *sp, ui
         return;
     }
 
+    case V_DIZZY: {
+        /* Small hollow circle ring — O-shaped mouth */
+        int cx = CENTER_X;
+        int cy = my + 4;
+        int outer_r = 8;
+        int inner_r = 5;
+        if (y < cy - outer_r || y > cy + outer_r) return;
+        for (int x = cx - outer_r; x <= cx + outer_r; x++) {
+            if (x < 0 || x >= SCREEN_W) continue;
+            int dx = x - cx, dy2 = y - cy;
+            int d2 = dx * dx + dy2 * dy2;
+            if (d2 <= outer_r * outer_r && d2 >= inner_r * inner_r)
+                buf[x] = pal[PAL_MOUTH];
+        }
+        return;
+    }
+
     case V_NEUTRAL:
     default:
         draw_ellipse_scan(y, CENTER_X, my + 6, 10, 4, pal[PAL_MOUTH], buf);
@@ -691,6 +773,20 @@ static void draw_decor_overlay(int y, const face_state_t *st,
                     buf[x] = pal[PAL_SHINE];
                 }
             }
+        }
+    }
+
+    /* ── DIZZY sparkle: 3 fixed ✦ stars around face (sparkle=1.0f flag) ── */
+    if (dp->sparkle > 0.9f) {
+        static const int dizzy_star_pos[3][2] = {
+            {CENTER_X - 50, CENTER_Y - 45},
+            {CENTER_X + 48, CENTER_Y - 40},
+            {CENTER_X + 55, CENTER_Y + 10},
+        };
+        for (int i = 0; i < 3; i++) {
+            draw_star_scan(y, (float)dizzy_star_pos[i][0],
+                           (float)dizzy_star_pos[i][1],
+                           16.0f, pal[PAL_SCLERA], buf, SCREEN_W);
         }
     }
 }
