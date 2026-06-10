@@ -28,6 +28,7 @@ static inline void face_init(void) {
 
 static inline void face_set_expression(expression_id_t id) {
     animator_set_expression(id);
+    micro_animator_set_expression(id);
 }
 
 static inline void face_set_component(face_component_t comp,
