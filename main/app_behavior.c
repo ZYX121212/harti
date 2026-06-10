@@ -20,12 +20,16 @@ typedef enum {
     STATE_COLD,
     STATE_BORED,
     STATE_SLEEPY,
+    STATE_DIZZY,
+    STATE_UPSIDE_DOWN,
 } behavior_state_t;
 
 static behavior_state_t current_state = STATE_IDLE;
 static TickType_t last_event_ticks;
 static TickType_t state_start_ticks;
 static expression_id_t prev_expression = 0; /* EMOTION_NEUTRAL */
+static TickType_t dizzy_start_ticks = 0;       // for 2s DIZZY auto-recovery
+static TickType_t upside_down_start_ticks = 0; // for 30s UPSIDE_DOWN timeout
 
 // Helper: set emotion and update state
 static void transition_to(behavior_state_t state, emotion_t emo) {
@@ -60,10 +64,35 @@ static void check_idle(void) {
     int elapsed_s = (now - last_event_ticks) * portTICK_PERIOD_MS / 1000;
     int state_elapsed_s = (now - state_start_ticks) * portTICK_PERIOD_MS / 1000;
 
-    // SURPRISED → THINKING
+    /* DIZZY: auto-recover to NEUTRAL after 2000ms */
+    if (current_state == STATE_DIZZY) {
+        int dizzy_ms = (int)((now - dizzy_start_ticks) * portTICK_PERIOD_MS);
+        if (dizzy_ms >= 2000) {
+            transition_to(STATE_IDLE, EMOTION_NEUTRAL);
+            ESP_LOGI(TAG, "DIZZY timeout → NEUTRAL (%dms)", dizzy_ms);
+        }
+        return;
+    }
+
+    /* UPSIDE_DOWN: safety timeout after 30s */
+    if (current_state == STATE_UPSIDE_DOWN) {
+        int ud_s = (int)((now - upside_down_start_ticks) * portTICK_PERIOD_MS / 1000);
+        if (ud_s >= 30) {
+            transition_to(STATE_IDLE, EMOTION_NEUTRAL);
+            ESP_LOGI(TAG, "UPSIDE_DOWN 30s timeout → NEUTRAL");
+        }
+        return;
+    }
+
+    // SURPRISED → THINKING (only if genuinely surprised, not EXCITED-via-twist)
     if (current_state == STATE_SURPRISED && state_elapsed_s >= SURPRISE_TIMEOUT_SEC) {
-        transition_to(STATE_THINKING, EMOTION_THINKING);
-        ESP_LOGI(TAG, "SURPRISED → THINKING (%ds)", state_elapsed_s);
+        if (prev_expression == (expression_id_t)EMOTION_SURPRISED) {
+            transition_to(STATE_THINKING, EMOTION_THINKING);
+            ESP_LOGI(TAG, "SURPRISED → THINKING (%ds)", state_elapsed_s);
+        } else {
+            transition_to(STATE_IDLE, EMOTION_NEUTRAL);
+            ESP_LOGI(TAG, "SURPRISED(non) → NEUTRAL (%ds)", state_elapsed_s);
+        }
         return;
     }
 
@@ -115,38 +144,55 @@ static void on_event(const sensor_event_msg_t *msg) {
     switch (msg->type) {
 
     case EVT_SHAKE: {
-        face_prop_show(PROP_STAR_SMALL, 11.0f, 0.55f, 180);
-        if (was_idle) { transition_to(STATE_IDLE, EMOTION_NEUTRAL); break; }
-        if (msg->value >= 1.5f) {
-            transition_to(STATE_SURPRISED, EMOTION_SURPRISED);
-        } else if (msg->value >= 0.5f) {
-            transition_to(STATE_HAPPY, EMOTION_HAPPY);
+        if (was_idle) { transition_to(STATE_IDLE, EMOTION_NEUTRAL); }
+        if (current_state == STATE_DIZZY) {
+            /* Re-shake while dizzy: reset the recovery timer */
+            dizzy_start_ticks = xTaskGetTickCount();
+            ESP_LOGI(TAG, "SHAKE re-triggered, resetting DIZZY timer");
         } else {
-            transition_to(STATE_SURPRISED, EMOTION_EXCITED);
+            transition_to(STATE_DIZZY, EMOTION_DIZZY);
+            dizzy_start_ticks = xTaskGetTickCount();
+            ESP_LOGI(TAG, "SHAKE → DIZZY");
         }
         break;
     }
 
     case EVT_TAP:
-        if (was_idle) { transition_to(STATE_IDLE, EMOTION_NEUTRAL); break; }
-        if (msg->value >= 2.0f) {
+        if (was_idle) { transition_to(STATE_IDLE, EMOTION_NEUTRAL); }
+        if (msg->value >= 3.0f) {
             transition_to(STATE_SAD, EMOTION_SAD);
+            ESP_LOGI(TAG, "TAP x3 → SAD");
+        } else if (msg->value >= 2.0f) {
+            transition_to(STATE_SURPRISED, EMOTION_SURPRISED);
+            ESP_LOGI(TAG, "TAP x2 → SURPRISED");
+        } else {
+            transition_to(STATE_HAPPY, EMOTION_HAPPY);
+            ESP_LOGI(TAG, "TAP x1 → HAPPY");
         }
         break;
 
     case EVT_FLIP:
-        if (was_idle) { transition_to(STATE_IDLE, EMOTION_NEUTRAL); break; }
-        transition_to(STATE_SURPRISED, EMOTION_SURPRISED);
+        if (was_idle) { transition_to(STATE_IDLE, EMOTION_NEUTRAL); }
+        transition_to(STATE_UPSIDE_DOWN, EMOTION_UPSIDE_DOWN);
+        upside_down_start_ticks = xTaskGetTickCount();
+        ESP_LOGI(TAG, "FLIP → UPSIDE_DOWN");
+        break;
+
+    case EVT_FLIP_RESTORE:
+        if (current_state == STATE_UPSIDE_DOWN) {
+            transition_to(STATE_IDLE, EMOTION_NEUTRAL);
+            ESP_LOGI(TAG, "FLIP_RESTORE → NEUTRAL");
+        }
         break;
 
     case EVT_TWIST:
-        if (was_idle) { transition_to(STATE_IDLE, EMOTION_NEUTRAL); break; }
-        transition_to(STATE_SURPRISED, EMOTION_SURPRISED);
-        ESP_LOGI(TAG, "TWIST → SURPRISED");
+        if (was_idle) { transition_to(STATE_IDLE, EMOTION_NEUTRAL); }
+        transition_to(STATE_SURPRISED, EMOTION_EXCITED);
+        ESP_LOGI(TAG, "TWIST → EXCITED");
         break;
 
     case EVT_TILT:
-        if (was_idle) { transition_to(STATE_IDLE, EMOTION_NEUTRAL); break; }
+        if (was_idle) { transition_to(STATE_IDLE, EMOTION_NEUTRAL); }
         if (msg->value >= 2.5f) {
             transition_to(STATE_SURPRISED, EMOTION_SURPRISED);
         } else {
@@ -157,8 +203,10 @@ static void on_event(const sensor_event_msg_t *msg) {
 
     case EVT_WARM_UP:
         face_prop_show(PROP_TEACUP, 9.8f, 0.6f, 250);
-        if (was_idle) { transition_to(STATE_WARM, EMOTION_WARM); break; }
+        face_prop_show(PROP_HEART, 11.5f, 0.5f, 400);
+        if (was_idle) { transition_to(STATE_IDLE, EMOTION_NEUTRAL); }
         transition_to(STATE_WARM, EMOTION_WARM);
+        ESP_LOGI(TAG, "WARM_UP → WARM");
         break;
 
     case EVT_COLD_DOWN:
