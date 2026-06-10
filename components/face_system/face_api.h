@@ -8,6 +8,7 @@
 #include "face_prop.h"
 #include "face_vivid.h"
 #include "face_temperament.h"
+#include "face_seq.h"
 #include "sprites/sprite_registry.h"
 
 #include <string.h>
@@ -23,11 +24,12 @@ static inline void face_init(void) {
     prop_animator_init();
     face_vivid_init();
     face_temperament_init();
+    face_seq_init();
     renderer_set_sprite(sprite_registry_default());
 }
 
 static inline void face_set_expression(expression_id_t id) {
-    animator_set_expression(id);
+    face_seq_on_expression_set(id);   /* plays entry seq OR calls animator directly */
     micro_animator_set_expression(id);
 }
 
@@ -67,6 +69,7 @@ static inline void face_render_frame(void) {
 
 static inline void face_animator_tick(void) {
     animator_tick();
+    face_seq_tick();
 }
 
 static inline void face_set_temperament(const temperament_profile_t *p) {
