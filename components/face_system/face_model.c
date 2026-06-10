@@ -597,6 +597,86 @@ const expression_def_t EXPRESSION_DEFS[] = {
             [COMPONENT_DECOR]      = {100, 0, PATH_EASE_OUT},
         },
     },
+    // [14] DIZZY — shake trigger, star-pupil eyes, O-ring mouth
+    {
+        .name = "DIZZY",
+        .target = {
+            .face = {.roundness = 0.6f},
+            .brow = {
+                {.inner = {0, 0.1f}, .arch = {0, 0.1f}, .tail = {0, 0.1f}, .thickness = 1.0f, .taper = 0.6f},
+                {.inner = {0, 0.1f}, .arch = {0, 0.1f}, .tail = {0, 0.1f}, .thickness = 1.0f, .taper = 0.6f},
+            },
+            .eye = {
+                {.inner_corner = {0, 0}, .outer_corner = {0, 0},
+                 .top_lid_mid = {0, 0.0f}, .bot_lid_mid = {0, 0.0f},
+                 .iris_center = {0, 0},
+                 .position = {0, 0},
+                 .pupil_scale = 0.0f, .shine_intensity = 0.0f,
+                 .iris_detail = 1.0f, .eyelash = 0.0f},
+                {.inner_corner = {0, 0}, .outer_corner = {0, 0},
+                 .top_lid_mid = {0, 0.0f}, .bot_lid_mid = {0, 0.0f},
+                 .iris_center = {0, 0},
+                 .position = {0, 0},
+                 .pupil_scale = 0.0f, .shine_intensity = 0.0f,
+                 .iris_detail = 1.0f, .eyelash = 0.0f},
+            },
+            .mouth = {
+                .left_corner = {0, 0}, .right_corner = {0, 0},
+                .upper_lip_mid = {0, 0}, .lower_lip_mid = {0, 0},
+                .openness = 0.15f, .cupid_depth = 0.18f,
+            },
+            .decor = {.blush = 0, .tears = 0, .stars = 0, .sweat = 0, .sparkle = 1.0f},
+        },
+        .timing = {
+            [COMPONENT_FACE]       = {80, 0, PATH_EASE_OUT},
+            [COMPONENT_BROW_LEFT]  = {80, 0, PATH_EASE_OUT},
+            [COMPONENT_BROW_RIGHT] = {80, 0, PATH_EASE_OUT},
+            [COMPONENT_EYE_LEFT]   = {80, 0, PATH_EASE_OUT},
+            [COMPONENT_EYE_RIGHT]  = {80, 0, PATH_EASE_OUT},
+            [COMPONENT_MOUTH]      = {80, 0, PATH_EASE_OUT},
+            [COMPONENT_DECOR]      = {80, 0, PATH_EASE_OUT},
+        },
+    },
+    // [15] UPSIDE_DOWN — flip trigger, teary pouty eyes, strong corner droop
+    {
+        .name = "UPSIDE_DOWN",
+        .target = {
+            .face = {.roundness = 0.5f},
+            .brow = {
+                {.inner = {0, -0.2f}, .arch = {0, 0.05f}, .tail = {0, 0.3f}, .thickness = 1.0f, .taper = 0.6f},
+                {.inner = {0, -0.2f}, .arch = {0, 0.05f}, .tail = {0, 0.3f}, .thickness = 1.0f, .taper = 0.6f},
+            },
+            .eye = {
+                {.inner_corner = {0, 0}, .outer_corner = {0, 0},
+                 .top_lid_mid = {0, 0.0f}, .bot_lid_mid = {0, 0.0f},
+                 .iris_center = {0, 0.2f},
+                 .position = {0, 0},
+                 .pupil_scale = 0.45f, .shine_intensity = 0.6f,
+                 .iris_detail = 0.9f, .eyelash = 0.0f},
+                {.inner_corner = {0, 0}, .outer_corner = {0, 0},
+                 .top_lid_mid = {0, 0.0f}, .bot_lid_mid = {0, 0.0f},
+                 .iris_center = {0, 0.2f},
+                 .position = {0, 0},
+                 .pupil_scale = 0.45f, .shine_intensity = 0.6f,
+                 .iris_detail = 0.9f, .eyelash = 0.0f},
+            },
+            .mouth = {
+                .left_corner = {0.05f, 0.22f}, .right_corner = {-0.05f, 0.22f},
+                .upper_lip_mid = {0, 0.1f}, .lower_lip_mid = {0, 0.15f},
+                .openness = 0.05f, .cupid_depth = 0.1f,
+            },
+            .decor = {.blush = 0, .tears = 0.8f, .stars = 0, .sweat = 0, .sparkle = 0},
+        },
+        .timing = {
+            [COMPONENT_FACE]       = {150, 0,   PATH_EASE_IN_OUT},
+            [COMPONENT_BROW_LEFT]  = {150, 0,   PATH_EASE_IN_OUT},
+            [COMPONENT_BROW_RIGHT] = {150, 0,   PATH_EASE_IN_OUT},
+            [COMPONENT_EYE_LEFT]   = {150, 30,  PATH_EASE_IN_OUT},
+            [COMPONENT_EYE_RIGHT]  = {150, 30,  PATH_EASE_IN_OUT},
+            [COMPONENT_MOUTH]      = {200, 80,  PATH_EASE_IN_OUT},
+            [COMPONENT_DECOR]      = {200, 100, PATH_EASE_IN_OUT},
+        },
+    },
 };
 
 const uint8_t EXPRESSION_COUNT = sizeof(EXPRESSION_DEFS) / sizeof(EXPRESSION_DEFS[0]);
