@@ -1,6 +1,7 @@
 #include "sprite_vector.h"
 #include "face_palette.h"
 #include "face_common.h"
+#include "face_vivid.h"
 #include <math.h>
 #include <string.h>
 
@@ -699,21 +700,28 @@ static void draw_decor_overlay(int y, const face_state_t *st,
     const decor_params_t *dp = &st->decor;
     const uint16_t *pal = sp->pal;
 
-    // ── Tears: white droplet outlines below eyes ──
+    // ── Tears: physics-driven white droplet outlines below eyes ──
     if (dp->tears > 0.01f) {
-        int tear_cy = CENTER_Y + 30;
-        float dy = y - tear_cy;
-        if (dy > 0 && dy < 28 * dp->tears) {
-            int positions[2] = {CENTER_X - 35, CENTER_X + 35};
-            for (int i = 0; i < 2; i++) {
-                float r = 5.0f - dy * 0.05f;
-                if (r < 1.0f) continue;
-                float r_sq = r * r;
-                int sx = positions[i], sy = tear_cy + 5;
-                for (int x = sx - (int)r - 2; x <= sx + (int)r + 2; x++) {
-                    if (x < 0 || x >= SCREEN_W) continue;
-                    float d_sq = dist_sq(x, y, sx, sy);
-                    if (d_sq < r_sq && fabsf(sqrtf(d_sq) - r) < 1.3f) {
+        tear_drop_t drops[4];
+        face_vivid_get_tears(drops, st);
+        static const int EYE_ANCHOR_X[4] = {
+            CENTER_X - 35, CENTER_X - 35, CENTER_X + 35, CENTER_X + 35,
+        };
+        const int EYE_BOTTOM_Y = CENTER_Y + 28;
+        for (int i = 0; i < 4; i++) {
+            float op = drops[i].opacity * dp->tears;
+            if (op < 0.05f) continue;
+            int sx = EYE_ANCHOR_X[i] + (int)drops[i].x;
+            int sy = EYE_BOTTOM_Y + (int)drops[i].y;
+            float r = 5.0f - drops[i].y * 0.08f;
+            if (r < 1.5f) r = 1.5f;
+            if (y < sy - (int)r - 2 || y > sy + (int)r + 2) continue;
+            float r_sq = r * r;
+            for (int x = sx - (int)r - 2; x <= sx + (int)r + 2; x++) {
+                if (x < 0 || x >= SCREEN_W) continue;
+                float d_sq = dist_sq(x, y, sx, sy);
+                if (d_sq < r_sq && fabsf(sqrtf(d_sq) - r) < 1.3f) {
+                    if (op >= 0.99f || bayer_accept(x, y, op)) {
                         buf[x] = pal[PAL_TEAR];
                     }
                 }
