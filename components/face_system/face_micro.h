@@ -25,6 +25,9 @@ void micro_animator_set_enabled(bool on);
 // Interrupts any in-progress blink on that eye.
 void micro_animator_wink(int eye);
 
+// Notify micro-animator of current expression. Resets expression-linked state machines.
+void micro_animator_set_expression(expression_id_t id);
+
 #ifdef __cplusplus
 }
 #endif

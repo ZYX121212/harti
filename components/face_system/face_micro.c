@@ -1,4 +1,5 @@
 #include "face_micro.h"
+#include "../../main/harti_config.h"
 #include "lvgl.h"
 #include <math.h>
 #include <stdlib.h>
@@ -90,6 +91,21 @@ static float smooth_pitch, smooth_roll;
 /* ── Master ─────────────────────────────────────────────── */
 static bool enabled = true;
 
+/* ── Expression-linked micro-animations ─────────────────────────────────── */
+static expression_id_t current_expr_id = 0;
+
+/* BORED sigh state machine */
+typedef enum { SIGH_IDLE, SIGH_CLOSING, SIGH_HOLD, SIGH_OPENING } sigh_phase_t;
+static sigh_phase_t sigh_phase    = SIGH_IDLE;
+static uint32_t     sigh_start    = 0;
+static uint32_t     next_sigh_at  = 0;
+
+/* SLEEPY startle state machine */
+typedef enum { STARTLE_IDLE, STARTLE_OPEN, STARTLE_HOLD, STARTLE_CLOSE } startle_phase_t;
+static startle_phase_t startle_phase    = STARTLE_IDLE;
+static uint32_t        startle_start    = 0;
+static uint32_t        next_startle_at  = 0;
+
 /* ═══════════════════════════════════════════════════════════
    Helpers
    ═══════════════════════════════════════════════════════════ */
@@ -137,6 +153,16 @@ void micro_animator_init(void) {
     // Tilt
     raw_pitch = raw_roll = 0;
     smooth_pitch = smooth_roll = 0;
+}
+
+void micro_animator_set_expression(expression_id_t id) {
+    if (id == current_expr_id) return;
+    current_expr_id = id;
+    /* Reset expression-linked state machines */
+    sigh_phase = SIGH_IDLE;
+    next_sigh_at = lv_tick_get() + rand_ms(3000, 8000);
+    startle_phase = STARTLE_IDLE;
+    next_startle_at = lv_tick_get() + rand_ms(5000, 12000);
 }
 
 void micro_animator_set_tilt(float pitch, float roll) {
@@ -373,5 +399,92 @@ void micro_animator_apply(face_state_t *s) {
         s->eye[i].iris_center.dy += gaze_y + tilt_dy;
         s->eye[i].position.dx += drift_x;
         s->eye[i].position.dy += drift_y;
+    }
+
+    /* ── 3-A COLD shiver: 8 Hz squash/stretch ──────────────── */
+    if (current_expr_id == EMOTION_COLD) {
+        float shiver = sinf((float)now * 2.0f * 3.14159265f * 8.0f / 1000.0f) * 0.025f;
+        s->face.squash_x  += shiver;
+        s->face.stretch_y -= shiver * 0.6f;
+    }
+
+    /* ── 3-B BORED sigh: periodic eyelid droop ─────────────── */
+    if (current_expr_id == EMOTION_BORED) {
+        if (sigh_phase == SIGH_IDLE && now >= next_sigh_at) {
+            sigh_phase = SIGH_CLOSING;
+            sigh_start = now;
+        }
+        if (sigh_phase != SIGH_IDLE) {
+            uint32_t dt = now - sigh_start;
+            float sigh_t = 0.0f;
+            switch (sigh_phase) {
+            case SIGH_CLOSING:
+                sigh_t = clampf((float)dt / 400.0f, 0.0f, 1.0f);
+                s->eye[0].top_lid_mid.dy += ease_out(sigh_t) * 0.45f;
+                s->eye[1].top_lid_mid.dy += ease_out(sigh_t) * 0.45f;
+                if (dt >= 400) { sigh_phase = SIGH_HOLD; sigh_start = now; }
+                break;
+            case SIGH_HOLD:
+                s->eye[0].top_lid_mid.dy += 0.45f;
+                s->eye[1].top_lid_mid.dy += 0.45f;
+                if (dt >= 200) { sigh_phase = SIGH_OPENING; sigh_start = now; }
+                break;
+            case SIGH_OPENING:
+                sigh_t = clampf((float)dt / 600.0f, 0.0f, 1.0f);
+                s->eye[0].top_lid_mid.dy += (1.0f - sigh_t) * 0.45f;
+                s->eye[1].top_lid_mid.dy += (1.0f - sigh_t) * 0.45f;
+                if (dt >= 600) {
+                    sigh_phase = SIGH_IDLE;
+                    next_sigh_at = now + rand_ms(8000, 15000);
+                }
+                break;
+            default: break;
+            }
+        }
+    } else {
+        sigh_phase = SIGH_IDLE;
+    }
+
+    /* ── 3-C SLEEPY startle: brief eye-open ────────────────── */
+    if (current_expr_id == EMOTION_SLEEPY) {
+        if (startle_phase == STARTLE_IDLE && now >= next_startle_at) {
+            startle_phase = STARTLE_OPEN;
+            startle_start = now;
+        }
+        if (startle_phase != STARTLE_IDLE) {
+            uint32_t dt = now - startle_start;
+            float t = 0.0f;
+            switch (startle_phase) {
+            case STARTLE_OPEN:
+                t = clampf((float)dt / 120.0f, 0.0f, 1.0f);
+                s->eye[0].top_lid_mid.dy -= ease_out(t) * 0.55f;
+                s->eye[1].top_lid_mid.dy -= ease_out(t) * 0.55f;
+                s->eye[0].pupil_scale    += ease_out(t) * 0.3f;
+                s->eye[1].pupil_scale    += ease_out(t) * 0.3f;
+                if (dt >= 120) { startle_phase = STARTLE_HOLD; startle_start = now; }
+                break;
+            case STARTLE_HOLD:
+                s->eye[0].top_lid_mid.dy -= 0.55f;
+                s->eye[1].top_lid_mid.dy -= 0.55f;
+                s->eye[0].pupil_scale    += 0.3f;
+                s->eye[1].pupil_scale    += 0.3f;
+                if (dt >= 500) { startle_phase = STARTLE_CLOSE; startle_start = now; }
+                break;
+            case STARTLE_CLOSE:
+                t = clampf((float)dt / 300.0f, 0.0f, 1.0f);
+                s->eye[0].top_lid_mid.dy -= (1.0f - t) * 0.55f;
+                s->eye[1].top_lid_mid.dy -= (1.0f - t) * 0.55f;
+                s->eye[0].pupil_scale    += (1.0f - t) * 0.3f;
+                s->eye[1].pupil_scale    += (1.0f - t) * 0.3f;
+                if (dt >= 300) {
+                    startle_phase = STARTLE_IDLE;
+                    next_startle_at = now + rand_ms(12000, 20000);
+                }
+                break;
+            default: break;
+            }
+        }
+    } else {
+        startle_phase = STARTLE_IDLE;
     }
 }
