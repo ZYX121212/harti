@@ -106,6 +106,133 @@ static startle_phase_t startle_phase    = STARTLE_IDLE;
 static uint32_t        startle_start    = 0;
 static uint32_t        next_startle_at  = 0;
 
+/* ── Entry Impact ───────────────────────────────────────── */
+typedef struct {
+    bool     active;
+    uint32_t start_ms;
+    uint32_t duration_ms;
+    float    sq_peak;       /* squash_x additive peak */
+    float    st_peak;       /* stretch_y additive peak */
+    float    pupil_peak;    /* pupil_scale additive peak (both eyes) */
+    float    brow_peak;     /* brow arch.dy additive peak (both brows) */
+    /* EXCITED two-peak extension (sq2_peak==0 → single peak) */
+    float    sq2_peak;
+    float    st2_peak;
+    uint32_t peak2_ms;      /* start ms of second bell (offset from start) */
+} impact_state_t;
+
+static impact_state_t g_impact;
+
+typedef struct {
+    float    sq_peak;
+    float    st_peak;
+    uint32_t duration_ms;
+    float    pupil_peak;
+    float    brow_peak;
+    float    sq2_peak;
+    float    st2_peak;
+    uint32_t peak2_ms;
+} impact_cfg_t;
+
+/* Indexed by EMOTION_* from harti_config.h */
+static const impact_cfg_t IMPACT_TABLE[] = {
+    /* [0]  NEUTRAL     */ {  0.00f,  0.00f,   0,  0.00f,  0.00f,  0.00f,  0.00f,   0 },
+    /* [1]  HAPPY       */ { +0.15f, -0.10f, 200, +0.05f, -0.03f,  0.00f,  0.00f,   0 },
+    /* [2]  SAD         */ {  0.00f, -0.08f, 350, -0.05f,  0.00f,  0.00f,  0.00f,   0 },
+    /* [3]  SURPRISED   */ { +0.35f, -0.20f, 180, +0.12f, -0.06f,  0.00f,  0.00f,   0 },
+    /* [4]  SLEEPY      */ {  0.00f, -0.06f, 400, -0.08f,  0.00f,  0.00f,  0.00f,   0 },
+    /* [5]  ANGRY       */ { +0.22f, -0.14f, 140, -0.04f, +0.04f,  0.00f,  0.00f,   0 },
+    /* [6]  BORED       */ {  0.00f,  0.00f,   0,  0.00f,  0.00f,  0.00f,  0.00f,   0 },
+    /* [7]  EXCITED     */ { +0.30f, -0.18f, 320, +0.10f, -0.05f, -0.15f, +0.09f, 240 },
+    /* [8]  CONFUSED    */ { +0.12f,  0.00f, 180,  0.00f, +0.03f,  0.00f,  0.00f,   0 },
+    /* [9]  CONTENT     */ {  0.00f, +0.04f, 300,  0.00f, -0.02f,  0.00f,  0.00f,   0 },
+    /* [10] COLD        */ { +0.18f, -0.10f, 200, -0.06f,  0.00f,  0.00f,  0.00f,   0 },
+    /* [11] WARM        */ { +0.10f, +0.08f, 220, +0.04f, -0.04f,  0.00f,  0.00f,   0 },
+    /* [12] HEART_EYES  */ { +0.18f, +0.12f, 200,  0.00f, -0.04f,  0.00f,  0.00f,   0 },
+    /* [13] THINKING    */ { -0.05f, +0.06f, 200,  0.00f,  0.00f,  0.00f,  0.00f,   0 },
+    /* [14] DIZZY       */ { +0.25f, -0.15f, 280,  0.00f,  0.00f,  0.00f,  0.00f,   0 },
+    /* [15] UPSIDE_DOWN */ {  0.00f,  0.00f,   0,  0.00f,  0.00f,  0.00f,  0.00f,   0 },
+};
+
+/* ── Per-expression micro-animation targets ────────────── */
+#define MICRO_TGT_BOT_LID    0
+#define MICRO_TGT_TOP_LID    1
+#define MICRO_TGT_BROW_ARCH  2
+#define MICRO_TGT_PUPIL      3
+#define MICRO_TGT_FACE_SQ    4
+#define MICRO_TGT_SHINE      5
+#define MICRO_TGT_IRIS_DX    6
+#define MICRO_TGT_BLUSH      7
+
+typedef struct {
+    float   freq_hz;
+    float   amplitude;
+    uint8_t target;
+    uint8_t eye_mask;    /* 0=both, 1=left only, 2=right only */
+    bool    gated;
+    float   gate_freq_hz;
+} expr_micro_cfg_t;
+
+#define MICRO_MAX_EFFECTS 3
+typedef struct {
+    uint8_t          count;
+    expr_micro_cfg_t cfg[MICRO_MAX_EFFECTS];
+} expr_micro_entry_t;
+
+static const expr_micro_entry_t EXPR_MICRO_TABLE[] = {
+    /* [0]  NEUTRAL     */ { .count = 0 },
+    /* [1]  HAPPY       */ { 2, {
+        { 0.5f,  +0.015f, MICRO_TGT_BOT_LID,   0, false, 0.0f },
+        { 1.1f,  +0.012f, MICRO_TGT_BROW_ARCH,  0, true,  1.8f },
+    }},
+    /* [2]  SAD         */ { .count = 0 },  /* handled by tear particles */
+    /* [3]  SURPRISED   */ { 1, {
+        { 0.3f,  +0.018f, MICRO_TGT_IRIS_DX,    0, true,  0.07f },
+    }},
+    /* [4]  SLEEPY      */ { .count = 0 },  /* handled by startle SM */
+    /* [5]  ANGRY       */ { 2, {
+        { 10.0f, +0.008f, MICRO_TGT_TOP_LID,    0, true,  2.0f  },
+        {  2.0f, +0.012f, MICRO_TGT_BROW_ARCH,  0, false, 0.0f  },
+    }},
+    /* [6]  BORED       */ { .count = 0 },  /* handled by sigh SM */
+    /* [7]  EXCITED     */ { 2, {
+        { 4.0f,  +0.020f, MICRO_TGT_FACE_SQ,    0, false, 0.0f },
+        { 1.8f,  +0.060f, MICRO_TGT_SHINE,      0, false, 0.0f },
+    }},
+    /* [8]  CONFUSED    */ { 2, {
+        { 1.0f,  +0.022f, MICRO_TGT_BROW_ARCH,  1, false, 0.0f }, /* left only */
+        { 1.0f,  -0.022f, MICRO_TGT_BROW_ARCH,  2, false, 0.0f }, /* right, anti-phase */
+    }},
+    /* [9]  CONTENT     */ { 1, {
+        { 0.12f, +0.035f, MICRO_TGT_TOP_LID,    0, false, 0.0f },
+    }},
+    /* [10] COLD        */ { .count = 0 },  /* handled by shiver block */
+    /* [11] WARM        */ { 1, {
+        { 0.3f,  +0.040f, MICRO_TGT_BLUSH,      0, false, 0.0f },
+    }},
+    /* [12] HEART_EYES  */ { 1, {
+        { 1.5f,  +0.045f, MICRO_TGT_PUPIL,      0, false, 0.0f },
+    }},
+    /* [13] THINKING    */ { 1, {
+        { 0.07f, +0.080f, MICRO_TGT_IRIS_DX,    0, false, 0.0f },
+    }},
+    /* [14] DIZZY       */ { .count = 0 },
+    /* [15] UPSIDE_DOWN */ { .count = 0 },
+};
+
+/* ── Eye contact simulation ─────────────────────────────── */
+typedef enum {
+    EC_IDLE,
+    EC_CONVERGING,
+    EC_HOLDING,
+    EC_RELEASING,
+} eye_contact_phase_t;
+
+static eye_contact_phase_t ec_phase    = EC_IDLE;
+static uint32_t            ec_start    = 0;
+static uint32_t            ec_hold_ms  = 0;
+static uint32_t            next_ec_at  = 0;
+
 /* ═══════════════════════════════════════════════════════════
    Helpers
    ═══════════════════════════════════════════════════════════ */
@@ -153,6 +280,13 @@ void micro_animator_init(void) {
     // Tilt
     raw_pitch = raw_roll = 0;
     smooth_pitch = smooth_roll = 0;
+
+    // Impact
+    g_impact.active = false;
+
+    // Eye contact
+    ec_phase   = EC_IDLE;
+    next_ec_at = now + rand_ms(8000, 15000);
 }
 
 void micro_animator_set_expression(expression_id_t id) {
@@ -163,6 +297,25 @@ void micro_animator_set_expression(expression_id_t id) {
     next_sigh_at = lv_tick_get() + rand_ms(3000, 8000);
     startle_phase = STARTLE_IDLE;
     next_startle_at = lv_tick_get() + rand_ms(5000, 12000);
+
+    /* Trigger entry impact */
+    if (id < (expression_id_t)(sizeof(IMPACT_TABLE) / sizeof(IMPACT_TABLE[0]))) {
+        const impact_cfg_t *cfg = &IMPACT_TABLE[id];
+        if (cfg->duration_ms > 0) {
+            g_impact.active      = true;
+            g_impact.start_ms    = lv_tick_get();
+            g_impact.duration_ms = cfg->duration_ms;
+            g_impact.sq_peak     = cfg->sq_peak;
+            g_impact.st_peak     = cfg->st_peak;
+            g_impact.pupil_peak  = cfg->pupil_peak;
+            g_impact.brow_peak   = cfg->brow_peak;
+            g_impact.sq2_peak    = cfg->sq2_peak;
+            g_impact.st2_peak    = cfg->st2_peak;
+            g_impact.peak2_ms    = cfg->peak2_ms;
+        } else {
+            g_impact.active = false;
+        }
+    }
 }
 
 void micro_animator_set_tilt(float pitch, float roll) {
@@ -185,6 +338,7 @@ void micro_animator_wink(int eye) {
 void micro_animator_apply(face_state_t *s) {
     if (!enabled) return;
     uint32_t now = lv_tick_get();
+    float total_s = (float)now / 1000.0f;
 
     /* ══════════════════════════════════════════════════════
        1. Blink / Wink (per-eye)
@@ -401,6 +555,112 @@ void micro_animator_apply(face_state_t *s) {
         s->eye[i].position.dy += drift_y;
     }
 
+    /* ══════════════════════════════════════════════════════
+       6-B. Per-expression micro-animations (data-driven)
+       ══════════════════════════════════════════════════════ */
+    if (current_expr_id < (expression_id_t)(sizeof(EXPR_MICRO_TABLE) / sizeof(EXPR_MICRO_TABLE[0]))) {
+        const expr_micro_entry_t *entry = &EXPR_MICRO_TABLE[current_expr_id];
+        for (int ci = 0; ci < entry->count; ci++) {
+            const expr_micro_cfg_t *cfg = &entry->cfg[ci];
+            float delta = sinf(2.0f * 3.14159265f * cfg->freq_hz * total_s) * cfg->amplitude;
+            if (cfg->gated) {
+                float gate = sinf(2.0f * 3.14159265f * cfg->gate_freq_hz * total_s);
+                if (gate <= 0.4f) continue;
+            }
+            switch (cfg->target) {
+            case MICRO_TGT_BOT_LID:
+                for (int i = 0; i < 2; i++)
+                    if (cfg->eye_mask == 0 || cfg->eye_mask == (uint8_t)(i + 1))
+                        s->eye[i].bot_lid_mid.dy += delta;
+                break;
+            case MICRO_TGT_TOP_LID:
+                for (int i = 0; i < 2; i++)
+                    if (cfg->eye_mask == 0 || cfg->eye_mask == (uint8_t)(i + 1))
+                        s->eye[i].top_lid_mid.dy += delta;
+                break;
+            case MICRO_TGT_BROW_ARCH:
+                for (int i = 0; i < 2; i++)
+                    if (cfg->eye_mask == 0 || cfg->eye_mask == (uint8_t)(i + 1))
+                        s->brow[i].arch.dy += delta;
+                break;
+            case MICRO_TGT_PUPIL:
+                for (int i = 0; i < 2; i++)
+                    if (cfg->eye_mask == 0 || cfg->eye_mask == (uint8_t)(i + 1))
+                        s->eye[i].pupil_scale += delta;
+                break;
+            case MICRO_TGT_FACE_SQ:
+                s->face.squash_x  += delta;
+                s->face.stretch_y -= delta * 0.5f;
+                break;
+            case MICRO_TGT_SHINE:
+                for (int i = 0; i < 2; i++)
+                    if (cfg->eye_mask == 0 || cfg->eye_mask == (uint8_t)(i + 1))
+                        s->eye[i].shine_intensity += delta;
+                break;
+            case MICRO_TGT_IRIS_DX:
+                for (int i = 0; i < 2; i++)
+                    if (cfg->eye_mask == 0 || cfg->eye_mask == (uint8_t)(i + 1))
+                        s->eye[i].iris_center.dx += delta;
+                break;
+            case MICRO_TGT_BLUSH:
+                s->decor.blush = clampf(s->decor.blush + delta, 0.0f, 1.0f);
+                break;
+            default: break;
+            }
+        }
+    }
+
+    /* ══════════════════════════════════════════════════════
+       6-C. Eye contact simulation
+       ══════════════════════════════════════════════════════ */
+    {
+        float ec_dx = 0.0f, ec_dy = 0.0f;
+        bool suppressed = (current_expr_id == EMOTION_SLEEPY ||
+                           current_expr_id == EMOTION_BORED);
+
+        switch (ec_phase) {
+        case EC_IDLE:
+            if (!suppressed && now >= next_ec_at) {
+                ec_phase = EC_CONVERGING;
+                ec_start = now;
+            }
+            break;
+        case EC_CONVERGING: {
+            float t = clampf((float)(now - ec_start) / 200.0f, 0.0f, 1.0f);
+            ec_dx = -gaze_x * t;
+            ec_dy = -gaze_y * t;
+            if (t >= 1.0f) {
+                ec_phase   = EC_HOLDING;
+                ec_start   = now;
+                ec_hold_ms = rand_ms(200, 400);
+            }
+            break;
+        }
+        case EC_HOLDING:
+            ec_dx = -gaze_x;
+            ec_dy = -gaze_y;
+            if (now - ec_start >= ec_hold_ms) {
+                ec_phase = EC_RELEASING;
+                ec_start = now;
+            }
+            break;
+        case EC_RELEASING: {
+            float t = clampf((float)(now - ec_start) / 150.0f, 0.0f, 1.0f);
+            ec_dx = -gaze_x * (1.0f - t);
+            ec_dy = -gaze_y * (1.0f - t);
+            if (t >= 1.0f) {
+                ec_phase   = EC_IDLE;
+                next_ec_at = now + rand_ms(8000, 15000);
+            }
+            break;
+        }
+        }
+        for (int i = 0; i < 2; i++) {
+            s->eye[i].iris_center.dx += ec_dx;
+            s->eye[i].iris_center.dy += ec_dy;
+        }
+    }
+
     /* ── 3-A COLD shiver: 8 Hz squash/stretch ──────────────── */
     if (current_expr_id == EMOTION_COLD) {
         float shiver = sinf((float)now * 2.0f * 3.14159265f * 8.0f / 1000.0f) * 0.025f;
@@ -486,5 +746,48 @@ void micro_animator_apply(face_state_t *s) {
         }
     } else {
         startle_phase = STARTLE_IDLE;
+    }
+
+    /* ══════════════════════════════════════════════════════
+       7. Entry Impact (squash-and-stretch)
+       ══════════════════════════════════════════════════════ */
+    if (g_impact.active) {
+        uint32_t elapsed = now - g_impact.start_ms;
+        if (elapsed >= g_impact.duration_ms) {
+            g_impact.active = false;
+        } else {
+            float env;
+            if (g_impact.peak2_ms > 0) {
+                /* Two-peak (EXCITED): two independent bell curves */
+                float e1 = 0.0f, e2 = 0.0f;
+                if (elapsed < g_impact.peak2_ms) {
+                    float t1 = (float)elapsed / (float)g_impact.peak2_ms;
+                    e1 = sinf(t1 * 3.14159265f);
+                }
+                if (elapsed >= g_impact.peak2_ms) {
+                    float t2 = (float)(elapsed - g_impact.peak2_ms)
+                             / (float)(g_impact.duration_ms - g_impact.peak2_ms);
+                    t2 = clampf(t2, 0.0f, 1.0f);
+                    e2 = sinf(t2 * 3.14159265f);
+                }
+                s->face.squash_x  += g_impact.sq_peak * e1 + g_impact.sq2_peak * e2;
+                s->face.stretch_y += g_impact.st_peak * e1 + g_impact.st2_peak * e2;
+                env = e1 + e2;
+            } else {
+                /* Single-peak: bell curve over [0, duration_ms] */
+                float t = (float)elapsed / (float)g_impact.duration_ms;
+                env = sinf(t * 3.14159265f);
+                s->face.squash_x  += g_impact.sq_peak * env;
+                s->face.stretch_y += g_impact.st_peak * env;
+            }
+            if (g_impact.pupil_peak != 0.0f) {
+                s->eye[0].pupil_scale += g_impact.pupil_peak * env;
+                s->eye[1].pupil_scale += g_impact.pupil_peak * env;
+            }
+            if (g_impact.brow_peak != 0.0f) {
+                s->brow[0].arch.dy += g_impact.brow_peak * env;
+                s->brow[1].arch.dy += g_impact.brow_peak * env;
+            }
+        }
     }
 }
