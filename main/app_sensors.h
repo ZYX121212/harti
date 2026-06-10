@@ -20,6 +20,7 @@ typedef enum {
     EVT_BLE_FRIEND,
     EVT_TWIST,          // 陀螺仪 Z 轴旋转 (value: +1 cw, -1 ccw)
     EVT_TILT,           // 倾斜检测 (value: 0前 1左 2右 3后)
+    EVT_FLIP_RESTORE,   // Z轴从负回正（设备翻回正面朝上）
 } sensor_event_t;
 
 typedef struct {

@@ -30,6 +30,7 @@ static int   shake_frames = 0;
 
 static int   flip_z_down_frames = 0;
 static bool  flip_armed = true;
+static int   flip_restore_frames = 0;
 
 // Twist detection state (gyro Z-axis)
 static int   twist_frames = 0;
@@ -136,6 +137,20 @@ static void process_imu(const imu_data_t *data) {
         flip_z_down_frames = 0;
     }
 
+    // ── Flip restore detection (Z-axis back positive, sustained > 300ms) ──
+    if (!flip_armed && az > 0.7f) {
+        flip_restore_frames++;
+        if (flip_restore_frames >= 30) {
+            sensor_event_msg_t msg = { .type = EVT_FLIP_RESTORE, .value = 0 };
+            xQueueSend(event_queue, &msg, 0);
+            flip_armed = true;
+            flip_restore_frames = 0;
+            ESP_LOGI(TAG, "FLIP_RESTORE detected");
+        }
+    } else if (az <= 0.7f) {
+        flip_restore_frames = 0;
+    }
+
     // ── Twist detection (gyro Z > 100°/s sustained > 100ms) ──
     if (twist_cooldown > 0) {
         twist_cooldown--;
@@ -190,6 +205,7 @@ static void process_imu(const imu_data_t *data) {
 static float last_temp = 25.0f;
 static int   warm_up_frames = 0;
 static int   temp_sample_counter = 0;
+static bool  cold_active = false;   // 已在低温状态，避免重复触发
 
 static void process_temp(void) {
     temp_sample_counter++;
@@ -212,11 +228,16 @@ static void process_temp(void) {
         warm_up_frames = 0;
     }
 
-    // Cold
+    // Cold (edge-triggered: fire once on entry, re-arm on exit)
     if (temp < COLD_TEMP_THRESH) {
-        sensor_event_msg_t msg = { .type = EVT_COLD_DOWN, .value = temp };
-        xQueueSend(event_queue, &msg, 0);
-        ESP_LOGI(TAG, "COLD_DOWN temp=%.1f", temp);
+        if (!cold_active) {
+            cold_active = true;
+            sensor_event_msg_t msg = { .type = EVT_COLD_DOWN, .value = temp };
+            xQueueSend(event_queue, &msg, 0);
+            ESP_LOGI(TAG, "COLD_DOWN temp=%.1f", temp);
+        }
+    } else {
+        cold_active = false;
     }
 
     last_temp = temp;
