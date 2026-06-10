@@ -23,6 +23,8 @@ typedef enum {
     EMOTION_WARM,
     EMOTION_HEART_EYES,
     EMOTION_THINKING,
+    EMOTION_DIZZY,        // 14 — shake → star-pupil dizzy
+    EMOTION_UPSIDE_DOWN,  // 15 — flip → teary pouty
     EMOTION_COUNT
 } emotion_t;
 
