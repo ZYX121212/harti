@@ -192,31 +192,27 @@ static void draw_eye_chibi(int y, const eye_params_t *ep, float eye_r,
     float top_lid_curve = eye_r * 0.12f * lid_open;
     float bot_lid_y = eye_r * 0.55f + ep->bot_lid_mid.dy * 8.0f;
 
-    /* Iris/pupil center */
+    /* Pupil center (driven by gaze) */
     float iris_off_x = ep->iris_center.dx * eye_r * 0.45f;
     float iris_off_y = ep->iris_center.dy * eye_r * 0.35f;
-    float iris_r = eye_r * 0.52f;
-    float iris_r_sq = iris_r * iris_r;
 
-    /* Pupil */
-    float pupil_scale = 0.4f + ep->pupil_scale * 0.8f;
-    float pupil_r = eye_r * 0.18f * pupil_scale;
-    if (pupil_r < 4.0f) pupil_r = 4.0f;
+    /* Kawaii: large black pupil replaces the old iris (≈ eye_r * 0.52) */
+    float pupil_scale = 0.92f + ep->pupil_scale * 0.3f;
+    float pupil_r = eye_r * 0.52f * pupil_scale;
+    if (pupil_r < 6.0f) pupil_r = 6.0f;
     float pupil_r_sq = pupil_r * pupil_r;
 
-    /* Catchlights */
+    /* Dual white sparkles inside the pupil (kawaii standard proportions) */
     float shine = ep->shine_intensity;
-    float cl1_r = iris_r * 0.24f * sqrtf(shine);
-    float cl1_off_x = -iris_r * 0.22f;
-    float cl1_off_y = -iris_r * 0.28f;
+    float sh = shine > 0.0f ? sqrtf(shine) : 0.0f;
+    float cl1_off_x = -pupil_r * 0.32f;
+    float cl1_off_y = -pupil_r * 0.34f;
+    float cl1_r = pupil_r * 0.30f * sh;          /* upper-left, larger */
     float cl1_r_sq = cl1_r * cl1_r;
-
-    float cl2_r = iris_r * 0.09f * sqrtf(shine);
-    float cl2_off_x = iris_r * 0.18f;
-    float cl2_off_y = -iris_r * 0.35f;
+    float cl2_off_x = pupil_r * 0.26f;
+    float cl2_off_y = pupil_r * 0.24f;
+    float cl2_r = pupil_r * 0.16f * sh;          /* lower-right, smaller */
     float cl2_r_sq = cl2_r * cl2_r;
-
-    float iris_detail = ep->iris_detail;
 
     for (int x = x_start; x <= x_end; x++) {
         float fx = x - eye_cx;
@@ -229,55 +225,28 @@ static void draw_eye_chibi(int y, const eye_params_t *ep, float eye_r,
         if (fy < top_lid_at_x) continue;
         if (fy > bot_lid_y) continue;
 
-        /* Check if pixel is within iris */
-        float i_dx = fx - iris_off_x;
-        float i_dy = fy - iris_off_y;
-        float i_dist_sq = i_dx * i_dx + i_dy * i_dy;
+        /* Kawaii pupil: large black disc with dual white sparkles.
+           Drawn inside the lid-clipped loop, so it can never float
+           outside the eye during blinks/squints. */
+        float p_dx = fx - iris_off_x;
+        float p_dy = fy - iris_off_y;
+        float p_dist_sq = p_dx * p_dx + p_dy * p_dy;
 
-        if (i_dist_sq < iris_r_sq && i_dist_sq >= pupil_r_sq) {
-            /* Layer 2+3: Limbal ring + Iris gradient */
-            float t = sqrtf(i_dist_sq) / iris_r;
-
-            /* Limbal ring: dark band near iris outer edge */
-            float ring = expf(-((t - 0.78f) * (t - 0.78f)) / 0.012f) * iris_detail;
-            if (ring > 0.6f) {
-                buf[x] = pal[PAL_LIMBAL];
-                continue;
+        if (p_dist_sq < pupil_r_sq) {
+            bool sparkle = false;
+            if (shine > 0.1f) {
+                float s1dx = p_dx - cl1_off_x;
+                float s1dy = p_dy - cl1_off_y;
+                float s2dx = p_dx - cl2_off_x;
+                float s2dy = p_dy - cl2_off_y;
+                if (s1dx * s1dx + s1dy * s1dy < cl1_r_sq) sparkle = true;
+                else if (s2dx * s2dx + s2dy * s2dy < cl2_r_sq) sparkle = true;
             }
-
-            /* Iris gradient: center (honey) → edge (darker) */
-            uint16_t iris_edge = blend_colors(pal[PAL_IRIS], pal[PAL_LIMBAL], 0.25f * iris_detail);
-            buf[x] = blend_colors(pal[PAL_IRIS], iris_edge, t);
+            buf[x] = sparkle ? pal[PAL_SHINE] : pal[PAL_PUPIL];
             continue;
         }
 
-        if (i_dist_sq < pupil_r_sq) {
-            /* Layer 4: Pupil */
-            buf[x] = pal[PAL_PUPIL];
-            continue;
-        }
-
-        /* Layer 5: Dual catchlights */
-        if (shine > 0.05f) {
-            float cl1_dx = fx - (iris_off_x + cl1_off_x);
-            float cl1_dy = fy - (iris_off_y + cl1_off_y);
-            if (cl1_dx * cl1_dx + cl1_dy * cl1_dy < cl1_r_sq) {
-                float cl_t = sqrtf(cl1_dx * cl1_dx + cl1_dy * cl1_dy) / cl1_r;
-                if (cl_t < 0.6f || (cl_t < 1.0f && bayer_accept(x, y, 1.0f - cl_t))) {
-                    buf[x] = pal[PAL_SHINE];
-                    continue;
-                }
-            }
-
-            float cl2_dx = fx - (iris_off_x + cl2_off_x);
-            float cl2_dy = fy - (iris_off_y + cl2_off_y);
-            if (cl2_dx * cl2_dx + cl2_dy * cl2_dy < cl2_r_sq) {
-                buf[x] = pal[PAL_SHINE];
-                continue;
-            }
-        }
-
-        /* Layer 1 fallback: Sclera white */
+        /* Sclera white */
         buf[x] = pal[PAL_SCLERA];
     }
 
