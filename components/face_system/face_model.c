@@ -105,7 +105,7 @@ const expression_def_t EXPRESSION_DEFS[] = {
                 .upper_lip_mid = {0, -0.15f}, .lower_lip_mid = {0, 0.05f},
                 .openness = 0.0f, .cupid_depth = 0.7f, .tooth_show = 0.6f,
             },
-            .decor = {.blush = 0.0f, .tears = 0, .stars = 0, .sweat = 0, .sparkle = 0},
+            .decor = {.blush = 0.7f, .tears = 0, .stars = 0, .sweat = 0, .sparkle = 0},
         },
         .timing = {
             [COMPONENT_FACE]       = {125, 0, PATH_EASE_OUT},
@@ -425,7 +425,7 @@ const expression_def_t EXPRESSION_DEFS[] = {
                 .upper_lip_mid = {0, -0.1f}, .lower_lip_mid = {0, 0.02f},
                 .openness = 0.0f, .cupid_depth = 0.5f,
             },
-            .decor = {.blush = 0.0f, .tears = 0, .stars = 0, .sweat = 0, .sparkle = 0},
+            .decor = {.blush = 0.6f, .tears = 0, .stars = 0, .sweat = 0, .sparkle = 0},
         },
         .timing = {
             [COMPONENT_FACE]       = {250, 0, PATH_EASE_IN_OUT},
@@ -505,7 +505,7 @@ const expression_def_t EXPRESSION_DEFS[] = {
                 .upper_lip_mid = {0, -0.15f}, .lower_lip_mid = {0, 0.02f},
                 .openness = 0.05f, .cupid_depth = 0.6f,
             },
-            .decor = {.blush = 0.0f, .tears = 0, .stars = 0, .sweat = 0, .sparkle = 0},
+            .decor = {.blush = 0.6f, .tears = 0, .stars = 0, .sweat = 0, .sparkle = 0},
         },
         .timing = {
             [COMPONENT_FACE]       = {175, 0, PATH_EASE_OUT},
@@ -545,7 +545,7 @@ const expression_def_t EXPRESSION_DEFS[] = {
                 .upper_lip_mid = {0, -0.2f}, .lower_lip_mid = {0, 0.05f},
                 .openness = 0.15f, .cupid_depth = 0.7f,
             },
-            .decor = {.blush = 0.0f, .tears = 0, .stars = 0, .sweat = 0, .sparkle = 0},
+            .decor = {.blush = 0.9f, .tears = 0, .stars = 0, .sweat = 0, .sparkle = 0},
         },
         .timing = {
             [COMPONENT_FACE]       = {125, 0, PATH_EASE_OUT},
