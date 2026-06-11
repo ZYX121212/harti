@@ -59,6 +59,15 @@ static void draw_eye_impl(int y, const eye_params_t *ep, int eye_cx, int eye_cy,
     float slit_rx = 3.5f + ep->pupil_scale * 7.0f + dilate;
     float slit_ry = 10.0f + ep->pupil_scale * 1.0f - dilate * 0.5f;
 
+    /* Kawaii sparkles: two white catchlights inside the slit pupil.
+       Sized/placed relative to the (narrow) slit so they read as gloss. */
+    bool sparkle_on = ep->shine_intensity > 0.1f;
+    float sp1x = px - slit_rx * 0.30f, sp1y = py - slit_ry * 0.34f;
+    float sp1r = slit_rx * 0.55f;            /* upper-left, larger */
+    float sp2x = px + slit_rx * 0.26f, sp2y = py + slit_ry * 0.28f;
+    float sp2r = slit_rx * 0.30f;            /* lower-right, smaller */
+    float sp1_sq = sp1r * sp1r, sp2_sq = sp2r * sp2r;
+
     for (int x = x_start; x <= x_end; x++) {
         float fx = x - eye_cx;
         if (fx * fx + fy * fy >= eye_r * eye_r) continue;
@@ -66,13 +75,19 @@ static void draw_eye_impl(int y, const eye_params_t *ep, int eye_cx, int eye_cy,
         /* Lid occlusion */
         if (y < lid_y) { buf[x] = pal[PAL_BG]; continue; }
 
-        /* Pupil ellipse test */
+        /* Vertical-slit pupil ellipse test */
         float dx = (x - px) / slit_rx;
         float dy = (y - py) / slit_ry;
-        if (dx * dx + dy * dy < 1.0f)
-            buf[x] = pal[PAL_PUPIL];
-        else
+        if (dx * dx + dy * dy < 1.0f) {
+            /* White sparkles stamped on top of the black slit */
+            float s1x = x - sp1x, s1y = y - sp1y;
+            float s2x = x - sp2x, s2y = y - sp2y;
+            bool sp1 = sparkle_on && (s1x * s1x + s1y * s1y < sp1_sq);
+            bool sp2 = sparkle_on && (s2x * s2x + s2y * s2y < sp2_sq);
+            buf[x] = (sp1 || sp2) ? pal[PAL_SCLERA] : pal[PAL_PUPIL];
+        } else {
             buf[x] = pal[PAL_SCLERA];
+        }
     }
 }
 
@@ -142,7 +157,7 @@ static void draw_mouth(int y, const face_state_t *st, const sprite_set_t *sp, ui
     float lcx = CENTER_X + mp->left_corner.dx * hw;
     float rcx = CENTER_X + mp->right_corner.dx * hw;
     float rise = 6.0f * (1.0f + mp->cupid_depth * 0.5f);
-    float thick = 1.8f;
+    float thick = 2.8f;   /* softened ~2px thicker for kawaii */
 
     for (int x = xs; x <= xe; x++) {
         if (x < lcx - 2 || x > rcx + 2) continue;
@@ -167,7 +182,7 @@ static void draw_mouth(int y, const face_state_t *st, const sprite_set_t *sp, ui
 
         if (mp->openness > 0.03f) {
             float lower_y = mcy + mp->openness * 6.0f;
-            if (y >= lower_y - 1.5f && y <= lower_y + 1.5f)
+            if (y >= lower_y - 2.5f && y <= lower_y + 2.5f)
                 buf[x] = pal[PAL_SCLERA];
         }
     }
