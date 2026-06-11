@@ -59,15 +59,21 @@ static void draw_eye_nova(int y, const eye_params_t *ep, int eye_cx, int eye_cy,
     // Pupil offset
     float pdx = ep->iris_center.dx * 5.0f;
     float pdy = ep->iris_center.dy * 5.0f;
-    // Pupil: black circle with catchlights
-    float pupil_r = eye_r * 0.42f;
+    // Pupil: black circle with dual white catchlights (inverted kawaii)
+    float pupil_r = eye_r * 0.48f * (0.8f + ep->pupil_scale * 0.4f);
+    if (pupil_r < 5.0f) pupil_r = 5.0f;
     float pupil_r_sq = pupil_r * pupil_r;
 
-    // Catchlights (white)
-    float cl_r = 2.8f * sqrtf(shine);
-    float clx = pdx - pupil_r * 0.3f;
-    float cly = pdy - pupil_r * 0.3f;
-    float cl_r_sq = cl_r * cl_r;
+    // Dual white catchlights: upper-left larger, lower-right smaller
+    float sh = shine > 0.0f ? sqrtf(shine) : 0.0f;
+    float cl1_r = pupil_r * 0.34f * sh;
+    float cl1x = pdx - pupil_r * 0.32f;
+    float cl1y = pdy - pupil_r * 0.34f;
+    float cl1_r_sq = cl1_r * cl1_r;
+    float cl2_r = pupil_r * 0.18f * sh;
+    float cl2x = pdx + pupil_r * 0.26f;
+    float cl2y = pdy + pupil_r * 0.24f;
+    float cl2_r_sq = cl2_r * cl2_r;
 
     for (int x = x_start; x <= x_end; x++) {
         float fx = x - eye_cx;
@@ -77,11 +83,12 @@ static void draw_eye_nova(int y, const eye_params_t *ep, int eye_cx, int eye_cy,
         // Filled white eye
         buf[x] = pal[PAL_SCLERA];
 
-        // Black pupil
+        // Black pupil with dual white catchlights
         if (dist_sq(fx, fy, pdx, pdy) < pupil_r_sq) {
-            // White catchlight on black pupil
-            if (shine > 0.1f && dist_sq(fx, fy, clx, cly) < cl_r_sq) {
-                buf[x] = pal[PAL_SCLERA];  // white catchlight
+            if (shine > 0.1f &&
+                (dist_sq(fx, fy, cl1x, cl1y) < cl1_r_sq ||
+                 dist_sq(fx, fy, cl2x, cl2y) < cl2_r_sq)) {
+                buf[x] = pal[PAL_SCLERA];  // white sparkle
             } else {
                 buf[x] = pal[PAL_PUPIL];   // black pupil
             }
