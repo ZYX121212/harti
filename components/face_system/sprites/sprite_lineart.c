@@ -29,17 +29,22 @@ static void draw_eye_lineart(int y, const eye_params_t *ep, float eye_r,
 
     float eye_r_sq = eye_r * eye_r;
 
-    // ── pupil: filled white circle offset by iris_center ──
-    float pupil_r = eye_r * 0.22f * ep->pupil_scale;
+    // ── pupil: filled white disc offset by iris_center (lineart's visible pupil) ──
+    float pupil_r = eye_r * 0.30f * (0.7f + ep->pupil_scale * 0.6f);
+    if (pupil_r < 4.0f) pupil_r = 4.0f;
     float pcx = eye_cx + ep->iris_center.dx * 8.0f;
     float pcy = eye_cy + ep->iris_center.dy * 8.0f;
     float pupil_r_sq = pupil_r * pupil_r;
 
-    // ── catchlight: black negative-space dot inside pupil ──
-    float cl_r = pupil_r * 0.35f;
-    float clx = pcx - pupil_r * 0.3f;
-    float cly = pcy - pupil_r * 0.35f;
-    float cl_r_sq = cl_r * cl_r;
+    // ── dual catchlights: black negative-space notches (glossy, line-art idiom) ──
+    float cl1_r = pupil_r * 0.34f;
+    float cl1x = pcx - pupil_r * 0.32f;
+    float cl1y = pcy - pupil_r * 0.34f;
+    float cl1_r_sq = cl1_r * cl1_r;
+    float cl2_r = pupil_r * 0.16f;
+    float cl2x = pcx + pupil_r * 0.26f;
+    float cl2y = pcy + pupil_r * 0.24f;
+    float cl2_r_sq = cl2_r * cl2_r;
 
     // ── lid openness from params ──
     float lid_open = 1.0f - (ep->top_lid_mid.dy * 1.6f);
@@ -92,11 +97,11 @@ static void draw_eye_lineart(int y, const eye_params_t *ep, float eye_r,
             }
         }
 
-        // 4. Filled white pupil
+        // 4. Filled white pupil with dual black catchlight notches
         if (!drawn && dist_sq(fx, fy, pcx, pcy) < pupil_r_sq) {
-            // catchlight: black negative space
-            if (dist_sq(fx, fy, clx, cly) < cl_r_sq) {
-                buf[x] = pal[PAL_BG];  // black cutout
+            if (dist_sq(fx, fy, cl1x, cl1y) < cl1_r_sq ||
+                dist_sq(fx, fy, cl2x, cl2y) < cl2_r_sq) {
+                buf[x] = pal[PAL_BG];   // black negative-space catchlight
             } else {
                 buf[x] = pal[PAL_PUPIL]; // white filled
             }
