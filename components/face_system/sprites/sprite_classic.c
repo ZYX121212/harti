@@ -69,9 +69,6 @@ static void draw_face(int y, const face_state_t *st, const sprite_set_t *sp, uin
 /* ── draw_eye: render one eye with sclera + layered shine ─ */
 static void draw_eye_impl(int y, const eye_params_t *ep, float eye_r,
                           int eye_cx, int eye_cy, const uint16_t *pal, uint16_t *buf) {
-    const float iris_r = eye_r * 0.86f;
-    const float pupil_base_r = iris_r * 0.38f;
-
     float fy = y - eye_cy;
     if (fy < -eye_r - 2 || fy > eye_r + 2) return;
 
@@ -80,11 +77,13 @@ static void draw_eye_impl(int y, const eye_params_t *ep, float eye_r,
     if (x_start < 0) x_start = 0;
     if (x_end >= SCREEN_W) x_end = SCREEN_W - 1;
 
+    /* kawaii pupil geometry (screen coords) */
     float iris_cx = ep->iris_center.dx * 7.0f;
     float iris_cy = ep->iris_center.dy * 7.0f;
-    float iris_r_sq = iris_r * iris_r;
-    float pupil_r = pupil_base_r * ep->pupil_scale;
-    float pupil_r_sq = pupil_r * pupil_r;
+    float pupil_r = eye_r * 0.50f * (0.7f + ep->pupil_scale * 0.6f);
+    if (pupil_r < 4.0f) pupil_r = 4.0f;
+    float pupil_cx = eye_cx + iris_cx;
+    float pupil_cy = eye_cy + iris_cy;
 
     float lid_open = 1.0f - (ep->top_lid_mid.dy * 1.4f);
     if (lid_open < 0.05f) lid_open = 0.05f;
@@ -92,16 +91,6 @@ static void draw_eye_impl(int y, const eye_params_t *ep, float eye_r,
 
     float base_top = -eye_r * lid_open;
     float base_bot =  eye_r * lid_open;
-
-    // Big catchlights make the tiny screen read warmer and cuter.
-    float sh_cx = iris_cx - 8.0f, sh_cy = iris_cy - 9.0f;
-    float sh_r = 7.5f, sh_r_sq = sh_r * sh_r;
-    float sh2_cx = iris_cx + 5.0f, sh2_cy = iris_cy - 4.0f;
-    float sh2_r = 4.2f, sh2_r_sq = sh2_r * sh2_r;
-    float sh3_cx = iris_cx - 2.0f, sh3_cy = iris_cy + 6.0f;
-    float sh3_r = 2.4f, sh3_r_sq = sh3_r * sh3_r;
-
-    uint16_t iris_dark = blend_colors(pal[PAL_IRIS], pal[PAL_PUPIL], 0.65f);
 
     for (int x = x_start; x <= x_end; x++) {
         float fx = x - eye_cx;
@@ -131,57 +120,19 @@ static void draw_eye_impl(int y, const eye_params_t *ep, float eye_r,
         bool is_edge = (edge_dist < 1.5f);
 
         if (is_edge) {
-            // Edge: anti-alias iris features against sclera
-            float iris_d_sq = dist_sq(fx, fy, iris_cx, iris_cy);
-            float sh_d_sq = dist_sq(fx, fy, sh_cx, sh_cy);
-            uint16_t inner = pal[PAL_SCLERA]; // default to sclera
-            if (sh_d_sq < sh_r_sq && iris_d_sq < iris_r_sq)
-                inner = blend_colors(pal[PAL_IRIS], pal[PAL_SHINE], 0.85f);
-            else if (iris_d_sq < pupil_r_sq)
-                inner = pal[PAL_PUPIL];
-            else if (iris_d_sq < iris_r_sq) {
-                float grad_t = sqrtf(iris_d_sq) / iris_r;
-                inner = blend_colors(pal[PAL_IRIS], iris_dark, grad_t * grad_t);
-            }
-            buf[x] = blend_colors(buf[x], inner, edge_dist / 1.4f);
+            /* edge: anti-alias sclera against background */
+            buf[x] = blend_colors(buf[x], pal[PAL_SCLERA], edge_dist / 1.4f);
             continue;
         }
 
-        // Interior: fill sclera, then iris features on top
-        float iris_d_sq = dist_sq(fx, fy, iris_cx, iris_cy);
-        float pupil_d_sq = dist_sq(fx, fy, iris_cx + ep->iris_center.dx * 2.0f,
-                                             iris_cy + ep->iris_center.dy * 2.0f);
-        float sh_d_sq  = dist_sq(fx, fy, sh_cx, sh_cy);
-        float sh2_d_sq = dist_sq(fx, fy, sh2_cx, sh2_cy);
-        float sh3_d_sq = dist_sq(fx, fy, sh3_cx, sh3_cy);
-
-        // Base: sclera (white of eye)
+        /* interior: solid white sclera (kawaii pupil drawn on top below) */
         buf[x] = blend_colors(buf[x], pal[PAL_SCLERA], 0.92f);
-
-        if (sh_d_sq < sh_r_sq && iris_d_sq < iris_r_sq) {
-            float t = (1.0f - sh_d_sq / sh_r_sq) * ep->shine_intensity;
-            buf[x] = blend_colors(pal[PAL_IRIS], pal[PAL_SHINE], t);
-        } else if (sh2_d_sq < sh2_r_sq && iris_d_sq < iris_r_sq) {
-            float t = (1.0f - sh2_d_sq / sh2_r_sq) * ep->shine_intensity * 0.55f;
-            buf[x] = blend_colors(pal[PAL_IRIS], pal[PAL_SHINE], t);
-        } else if (sh3_d_sq < sh3_r_sq && iris_d_sq < iris_r_sq) {
-            float t = (1.0f - sh3_d_sq / sh3_r_sq) * ep->shine_intensity * 0.35f;
-            buf[x] = blend_colors(pal[PAL_IRIS], pal[PAL_SHINE], t);
-        } else if (iris_d_sq < iris_r_sq) {
-            float iris_dist = sqrtf(iris_d_sq);
-            float grad_t = iris_dist / iris_r;
-            uint16_t iris_color = blend_colors(pal[PAL_IRIS], iris_dark, grad_t * grad_t);
-            /* iris_detail: limbal ring darkening near iris edge */
-            if (ep->iris_detail > 0.01f && iris_dist > iris_r * 0.7f) {
-                float ring_t = (iris_dist - iris_r * 0.7f) / (iris_r * 0.3f);
-                float ring_alpha = ring_t * ep->iris_detail * 0.45f;
-                iris_color = blend_colors(iris_color, pal[PAL_PUPIL], ring_alpha);
-            }
-            buf[x] = iris_color;
-        } else if (pupil_d_sq < pupil_r_sq) {
-            buf[x] = pal[PAL_PUPIL];
-        }
     }
+
+    /* glossy black pupil + two white sparkles over the sclera */
+    draw_kawaii_pupil(y, x_start, x_end,
+                      pupil_cx, pupil_cy, pupil_r,
+                      ep->shine_intensity, pal[PAL_PUPIL], pal[PAL_SCLERA], buf);
 }
 
 static void draw_eye_left(int y, const face_state_t *st, const sprite_set_t *sp, uint16_t *buf) {
@@ -280,7 +231,7 @@ static void draw_mouth(int y, const face_state_t *st, const sprite_set_t *sp, ui
         }
         float lower_y = (1-t)*(1-t)*corner_y + 2*(1-t)*t*(lly + openness_offset) + t*t*corner_y;
 
-        if (y >= upper_y - 1.5f && y <= lower_y + 1.5f) {
+        if (y >= upper_y - 2.5f && y <= lower_y + 2.5f) {
             if (y > upper_y + 1.5f && y < lower_y - 1.5f && mp->openness > 0.05f) {
                 /* tooth_show: teeth in upper portion of open mouth */
                 if (mp->tooth_show > 0.01f) {
