@@ -323,13 +323,13 @@ static void draw_blush(int y, const face_state_t *st, const sprite_set_t *sp, ui
         if (d_left < r_sq || d_right < r_sq) {
             float d = (d_left < d_right) ? d_left : d_right;
             float t = (1.0f - d / r_sq) * level * 0.7f;
-            buf[x] = blend_colors(buf[x], pal[PAL_BLUSH], t);
+            if (t >= 0.4f && bayer_accept(x, y, t)) buf[x] = pal[PAL_BLUSH];
         }
 
         bool left_dash = (x >= left_cx - 12 && x <= left_cx + 10 && fabsf((float)y - (blush_cy + (x - left_cx) * 0.18f)) < 1.2f);
         bool right_dash = (x >= right_cx - 10 && x <= right_cx + 12 && fabsf((float)y - (blush_cy - (x - right_cx) * 0.18f)) < 1.2f);
         if (left_dash || right_dash) {
-            buf[x] = blend_colors(buf[x], pal[PAL_BLUSH], level * 0.75f);
+            if (bayer_accept(x, y, level * 0.75f)) buf[x] = pal[PAL_BLUSH];
         }
     }
 }
