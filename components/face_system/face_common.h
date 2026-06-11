@@ -974,7 +974,8 @@ static inline void draw_finger_heart_scan(int y, float cx, float cy, float size,
 
 /* 萌系亮眼瞳孔：大实心瞳 + 双高光星光。逐扫描线在某只眼的 x 范围内调用。
    (pcx,pcy)=瞳孔中心(屏幕px)，pr=瞳孔半径，shine=0..1 星光强度。
-   pupil_col=瞳孔填充色，sparkle_col=星光色（常规风格传 黑瞳/白星，nova 反相）。*/
+   pupil_col=瞳孔填充色，sparkle_col=星光色（常规风格传 黑瞳/白星，nova 反相）。
+   注意：本助手不做屏幕边界裁剪——调用方必须保证 [x_start,x_end] 已裁剪到 [0,screen_w-1]。*/
 static inline void draw_kawaii_pupil(int y, int x_start, int x_end,
                                      float pcx, float pcy, float pr, float shine,
                                      uint16_t pupil_col, uint16_t sparkle_col,
