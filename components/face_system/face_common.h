@@ -5,6 +5,10 @@
 #include <math.h>
 #include <stdbool.h>
 
+#define IMG1_240_WIDTH  240
+#define IMG1_240_HEIGHT 240
+extern const uint8_t img1_240_data[7200];
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -816,6 +820,7 @@ static inline void draw_music_note_scan(int y, float cx, float cy, float size,
 	/* Primary flag */
 	if (y >= stem_top && y <= stem_top + (int)(size * 0.5f)) {
 		float ft = (float)(y - stem_top) / (size * 0.5f);
+		float fx = stem_x + ft * size * 0.45f;
 		float fy_curve = stem_top + (1.0f - ft) * (1.0f - ft) * size * 0.1f;
 		if (fabsf(y - fy_curve - stem_top) < 2.0f || fabsf(y - (stem_top + ft * size * 0.5f)) < 1.5f) {
 			for (int dx = 0; dx <= (int)(ft * size * 0.4f); dx++) {
