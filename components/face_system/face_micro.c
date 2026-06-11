@@ -66,6 +66,7 @@ typedef struct {
 
 static eye_blink_t eye_blink[2];
 static uint32_t next_blink_at;   // shared auto-blink timer
+static uint32_t blink_open_at[2] = {0, 0};  /* 眨眼睁开完成时刻，用于回弹 */
 
 /* ── Gaze ───────────────────────────────────────────────── */
 typedef enum {
@@ -419,6 +420,7 @@ void micro_animator_apply(face_state_t *s) {
                     eb->phase_start = now;
                     eb->double_done = false;
                     eb->winking = false;  // clear manual wink flag
+                    blink_open_at[i] = now;  /* 触发眨眼回弹 */
                 }
             }
             break;
@@ -791,6 +793,51 @@ void micro_animator_apply(face_state_t *s) {
                 s->brow[0].arch.dy += g_impact.brow_peak * env;
                 s->brow[1].arch.dy += g_impact.brow_peak * env;
             }
+        }
+    }
+
+    /* ══════════════════════════════════════════════════════
+       8. Eye-liveliness（萌系灵动细节）
+       ══════════════════════════════════════════════════════ */
+
+    /* 8.1 高光微闪：星光像水光一样呼吸 */
+    {
+        float shimmer = sinf(total_s * 2.0f * 3.14159265f * 0.2f) * 0.12f;
+        for (int i = 0; i < 2; i++) {
+            s->eye[i].shine_intensity =
+                clampf(s->eye[i].shine_intensity + shimmer, 0.0f, 1.0f);
+        }
+    }
+
+    /* 8.2 好奇瞳孔游走：空闲期（无扫视/无眼神交流）慢速李萨如 */
+    if (gaze_phase == GAZE_DWELL && ec_phase == EC_IDLE) {
+        float dx = sinf(total_s * 2.0f * 3.14159265f * 0.13f) * 0.04f;
+        float dy = sinf(total_s * 2.0f * 3.14159265f * 0.17f + 1.0f) * 0.04f;
+        for (int i = 0; i < 2; i++) {
+            s->eye[i].iris_center.dx += dx;
+            s->eye[i].iris_center.dy += dy;
+        }
+    }
+
+    /* 8.3 星瞳/爱心瞳脉动：DIZZY / HEART_EYES 心跳式放大缩小 */
+    if (current_expr_id == EMOTION_DIZZY || current_expr_id == EMOTION_HEART_EYES) {
+        float pulse = sinf(total_s * 2.0f * 3.14159265f * 1.6f) * 0.18f;
+        for (int i = 0; i < 2; i++) {
+            s->eye[i].iris_detail =
+                clampf(s->eye[i].iris_detail + pulse, 0.0f, 1.0f);
+        }
+    }
+
+    /* 8.4 眨眼回弹：睁开瞬间上眼睑过冲到负值（眼睛睁更大）再回落 */
+    {
+        const uint32_t REBOUND_MS = 120;
+        for (int i = 0; i < 2; i++) {
+            if (blink_open_at[i] == 0) continue;
+            uint32_t dt = now - blink_open_at[i];
+            if (dt >= REBOUND_MS) { blink_open_at[i] = 0; continue; }
+            float t = (float)dt / (float)REBOUND_MS;     /* 0→1 */
+            float overshoot = -0.08f * (1.0f - t);        /* 负=睁更大，线性回 0 */
+            s->eye[i].top_lid_mid.dy += overshoot;
         }
     }
 }
