@@ -111,11 +111,16 @@ static void draw_eye_impl(int y, const eye_params_t *ep, int eye_cx,
     fill_circle_scan(y, eye_cx, (int)CENTER_Y, eye_r,
                      pal[PAL_SCLERA], buf, SCREEN_W);
 
-    /* Black pupil (drawn AFTER white fill, so it's on top) */
+    /* Black pupil with dual white sparkles (kawaii), on top of white fill */
     int pupil_cx = eye_cx + (int)pdx;
     int pupil_cy = (int)CENTER_Y + (int)pdy;
-    fill_circle_scan(y, pupil_cx, pupil_cy, pupil_r,
-                     pal[PAL_PUPIL], buf, SCREEN_W);
+    int px_start = pupil_cx - (int)pupil_r - 1;
+    int px_end   = pupil_cx + (int)pupil_r + 1;
+    if (px_start < 0) px_start = 0;
+    if (px_end >= SCREEN_W) px_end = SCREEN_W - 1;
+    draw_kawaii_pupil(y, px_start, px_end, (float)pupil_cx, (float)pupil_cy,
+                      pupil_r, ep->shine_intensity,
+                      pal[PAL_PUPIL], pal[PAL_SHINE], buf);
 
     /* Top eyelid: black overlay from top of eye downward */
     if (lid > 0.02f) {
