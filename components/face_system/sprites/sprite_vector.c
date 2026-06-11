@@ -152,55 +152,49 @@ static void draw_eye_vector(int y, const eye_params_t *ep, float eye_r,
         break;
     }
 
-    /* ── ③ SURPRISED: enlarged ring, small pupil, thin outline ── */
+    /* ── ③ SURPRISED: enlarged solid white disc + small kawaii pupil ── */
     case V_EYE_SURPRISED: {
-        float r_ext = eye_r * 1.12f;
+        float r_ext = eye_r * 1.15f;
         float eye_r_sq = r_ext * r_ext;
-        float pupil_dx = ep->iris_center.dx * r_ext * 0.5f;
-        float pupil_dy = ep->iris_center.dy * r_ext * 0.5f;
-        float pupil_r = eye_r * 0.22f * (0.5f + ep->pupil_scale * 0.5f);
-        if (pupil_r < 2.5f) pupil_r = 2.5f;
-        float pupil_r_sq = pupil_r * pupil_r;
+        float pupil_dx = ep->iris_center.dx * r_ext * 0.4f;
+        float pupil_dy = ep->iris_center.dy * r_ext * 0.4f - r_ext * 0.1f; /* 略上移 */
+        float pupil_r  = eye_r * 0.30f * (0.6f + ep->pupil_scale * 0.5f);
+        if (pupil_r < 3.0f) pupil_r = 3.0f;
         for (int x = x_start; x <= x_end; x++) {
             float fx = x - eye_cx;
-            float r_sq = fx * fx + fy * fy;
-            if (r_sq >= eye_r_sq) continue;
-            float r = sqrtf(r_sq);
-            if (r_ext - r < 1.5f) {
-                buf[x] = pal[PAL_SCLERA];
-                continue;
-            }
-            float p_dx = fx - pupil_dx;
-            float p_dy = fy - pupil_dy;
-            if (p_dx * p_dx + p_dy * p_dy < pupil_r_sq) {
-                buf[x] = pal[PAL_SCLERA];
-            }
+            if (fx * fx + fy * fy < eye_r_sq) buf[x] = pal[PAL_SCLERA];
         }
+        draw_kawaii_pupil(y, x_start, x_end,
+                          eye_cx + pupil_dx, eye_cy + pupil_dy, pupil_r,
+                          ep->shine_intensity, pal[PAL_PUPIL], pal[PAL_SCLERA], buf);
         break;
     }
 
-    /* ── ④ SAD: vertical ellipse outline, pupil sunk low ── */
+    /* ── ④ SAD: vertical ellipse solid white disc + kawaii pupil + droopy upper lid ── */
     case V_EYE_SAD: {
-        float ry = eye_r * 0.82f;
+        float ry = eye_r * 0.92f;
         float ry_sq = ry * ry;
         float pupil_dx = ep->iris_center.dx * eye_r * 0.5f;
-        float pupil_dy = ep->iris_center.dy * eye_r * 0.6f;
-        float pupil_r = eye_r * 0.28f * (0.4f + ep->pupil_scale * 0.6f);
-        if (pupil_r < 2.5f) pupil_r = 2.5f;
-        float pupil_r_sq = pupil_r * pupil_r;
+        float pupil_dy = eye_r * 0.32f + ep->iris_center.dy * eye_r * 0.3f; /* 下沉 */
+        float pupil_r  = eye_r * 0.40f * (0.6f + ep->pupil_scale * 0.5f);
+        if (pupil_r < 3.0f) pupil_r = 3.0f;
+        /* 竖椭圆实心白眼盘 */
         for (int x = x_start; x <= x_end; x++) {
             float fx = x - eye_cx;
-            float e = (fx * fx) / (eye_r * eye_r) + (fy * fy) / ry_sq;
-            if (e >= 1.0f) continue;
-            if (sqrtf(e) > 0.88f) {
+            if ((fx * fx) / (eye_r * eye_r) + (fy * fy) / ry_sq < 1.0f)
                 buf[x] = pal[PAL_SCLERA];
-                continue;
-            }
-            float p_dx = fx - pupil_dx;
-            float p_dy = fy - pupil_dy;
-            if (p_dx * p_dx + p_dy * p_dy < pupil_r_sq) {
-                buf[x] = pal[PAL_SCLERA];
-            }
+        }
+        /* 黑瞳 + 星光 */
+        draw_kawaii_pupil(y, x_start, x_end,
+                          eye_cx + pupil_dx, eye_cy + pupil_dy, pupil_r,
+                          ep->shine_intensity, pal[PAL_PUPIL], pal[PAL_SCLERA], buf);
+        /* 上眼睑：黑色弧形遮住眼上缘，制造垂眼（正确版本，勿用占位符） */
+        float er2 = eye_r * eye_r;
+        float lid_y = eye_cy - eye_r * 0.30f;
+        for (int x = x_start; x <= x_end; x++) {
+            float fx = x - eye_cx;
+            if (fx * fx + fy * fy < er2 && y < lid_y)
+                buf[x] = pal[PAL_BG];
         }
         break;
     }
@@ -266,15 +260,10 @@ static void draw_eye_vector(int y, const eye_params_t *ep, float eye_r,
         break;
     }
 
-    /* ── ⑦ BORED: half-lidded arc + pupil ── */
+    /* ── ⑦ BORED: half-lidded arc + kawaii pupil in open slit ── */
     case V_EYE_BORED: {
         float half_w = eye_r * 0.88f;
         float arc_drop = eye_r * 0.35f;
-        float pupil_r = eye_r * 0.26f * (0.5f + ep->pupil_scale * 0.5f);
-        if (pupil_r < 2.0f) pupil_r = 2.0f;
-        float pupil_r_sq = pupil_r * pupil_r;
-        float pupil_dx = ep->iris_center.dx * eye_r * 0.5f;
-        float pupil_dy = ep->iris_center.dy * eye_r * 0.5f - eye_r * 0.1f;
         for (int x = x_start; x <= x_end; x++) {
             float fx = x - eye_cx;
             if (fabsf(fx) > half_w) continue;
@@ -285,13 +274,16 @@ static void draw_eye_vector(int y, const eye_params_t *ep, float eye_r,
             if (fabsf(y - lid_y) < 2.2f) {
                 buf[x] = pal[PAL_SCLERA];
             }
-            if (y > lid_y && y < eye_cy + eye_r * 0.3f) {
-                float p_dx = fx - pupil_dx;
-                float p_dy = fy - pupil_dy;
-                if (p_dx * p_dx + p_dy * p_dy < pupil_r_sq) {
-                    buf[x] = pal[PAL_SCLERA];
-                }
-            }
+        }
+        /* 黑瞳 + 星光：仅在半睁的眼缝内显示 */
+        if (y > eye_cy - arc_drop && y < eye_cy + eye_r * 0.3f) {
+            float pupil_dx = ep->iris_center.dx * eye_r * 0.5f;
+            float pupil_dy = ep->iris_center.dy * eye_r * 0.5f - eye_r * 0.1f;
+            float pupil_r  = eye_r * 0.30f * (0.6f + ep->pupil_scale * 0.5f);
+            if (pupil_r < 3.0f) pupil_r = 3.0f;
+            draw_kawaii_pupil(y, x_start, x_end,
+                              eye_cx + pupil_dx, eye_cy + pupil_dy, pupil_r,
+                              ep->shine_intensity, pal[PAL_PUPIL], pal[PAL_SCLERA], buf);
         }
         break;
     }
@@ -350,59 +342,25 @@ static void draw_eye_vector(int y, const eye_params_t *ep, float eye_r,
             break;
         }
 
-    /* ── ① NORMAL: white outline + pupil + limbal ring + dual catchlight + eyelashes (unchanged) ── */
+    /* ── ① NORMAL: solid white eye disc + kawaii black pupil + white sparkles ── */
     case V_EYE_NORMAL:
     default: {
         float eye_r_sq = eye_r * eye_r;
         float pupil_dx = ep->iris_center.dx * eye_r * 0.55f;
         float pupil_dy = ep->iris_center.dy * eye_r * 0.55f;
-        float pupil_r = eye_r * 0.32f * (0.4f + ep->pupil_scale * 0.8f);
-        if (pupil_r < 3.0f) pupil_r = 3.0f;
-        float pupil_r_sq = pupil_r * pupil_r;
-        float limbal_r = pupil_r + 3.0f;
-        float limbal_r_sq = limbal_r * limbal_r;
-        float shine = ep->shine_intensity;
-        float cl1_r = pupil_r * 0.28f * sqrtf(shine);
-        float cl1_off_x = -pupil_r * 0.25f;
-        float cl1_off_y = -pupil_r * 0.3f;
-        float cl1_r_sq = cl1_r * cl1_r;
-        float cl2_r = pupil_r * 0.12f * sqrtf(shine);
-        float cl2_off_x = pupil_r * 0.2f;
-        float cl2_off_y = -pupil_r * 0.35f;
-        float cl2_r_sq = cl2_r * cl2_r;
-
+        float pupil_r  = eye_r * 0.50f * (0.7f + ep->pupil_scale * 0.6f);
+        if (pupil_r < 4.0f) pupil_r = 4.0f;
+        /* 实心白眼盘 */
         for (int x = x_start; x <= x_end; x++) {
             float fx = x - eye_cx;
-            float r_sq = fx * fx + fy * fy;
-            if (r_sq >= eye_r_sq) continue;
-            float r = sqrtf(r_sq);
-            if (eye_r - r < 2.5f) {
-                buf[x] = pal[PAL_SCLERA];
-                continue;
-            }
-            float p_dx = fx - pupil_dx;
-            float p_dy = fy - pupil_dy;
-            float p_dist_sq = p_dx * p_dx + p_dy * p_dy;
-            if (p_dist_sq < limbal_r_sq && p_dist_sq >= pupil_r_sq && ep->iris_detail > 0.1f) {
-                buf[x] = blend_colors(pal[PAL_SCLERA], pal[PAL_PUPIL], ep->iris_detail * 0.6f);
-                continue;
-            }
-            if (p_dist_sq < pupil_r_sq) {
-                float c1_dx = fx - (pupil_dx + cl1_off_x);
-                float c1_dy = fy - (pupil_dy + cl1_off_y);
-                float c2_dx = fx - (pupil_dx + cl2_off_x);
-                float c2_dy = fy - (pupil_dy + cl2_off_y);
-                bool in_cl1 = (shine > 0.1f && c1_dx * c1_dx + c1_dy * c1_dy < cl1_r_sq);
-                bool in_cl2 = (shine > 0.1f && c2_dx * c2_dx + c2_dy * c2_dy < cl2_r_sq);
-                if (in_cl1 || in_cl2) {
-                    buf[x] = pal[PAL_PUPIL];
-                } else {
-                    buf[x] = pal[PAL_SCLERA];
-                }
-            }
+            if (fx * fx + fy * fy < eye_r_sq) buf[x] = pal[PAL_SCLERA];
         }
-
-        /* Eyelashes on top lid (unchanged) */
+        /* 黑瞳 + 双白星光 */
+        draw_kawaii_pupil(y, x_start, x_end,
+                          eye_cx + pupil_dx, eye_cy + pupil_dy, pupil_r,
+                          ep->shine_intensity,
+                          pal[PAL_PUPIL], pal[PAL_SCLERA], buf);
+        /* 睫毛（保留） */
         if (ep->eyelash > 0.2f) {
             static const float lash_x[3] = { -0.35f, 0.0f, 0.35f };
             for (int i = 0; i < 3; i++) {
@@ -485,7 +443,7 @@ static void draw_mouth(int y, const face_state_t *st, const sprite_set_t *sp, ui
         int y1 = my + 5 + 24; if (y1 >= SCREEN_H) y1 = SCREEN_H - 1;
         if (y < y0 || y > y1) return;
         for (int x = x0; x <= x1; x++) {
-            if (in_arc_ring(x, y, CENTER_X, my + 5, 18, 13, 200.0f, 340.0f, pal, buf)) {
+            if (in_arc_ring(x, y, CENTER_X, my + 5, 19, 12, 200.0f, 340.0f, pal, buf)) {
                 buf[x] = pal[PAL_MOUTH];
             }
         }
@@ -510,7 +468,7 @@ static void draw_mouth(int y, const face_state_t *st, const sprite_set_t *sp, ui
         int y1 = my + 18 + 24; if (y1 >= SCREEN_H) y1 = SCREEN_H - 1;
         if (y < y0 || y > y1) return;
         for (int x = x0; x <= x1; x++) {
-            if (in_arc_ring(x, y, CENTER_X, my + 16, 18, 13, 20.0f, 160.0f, pal, buf)) {
+            if (in_arc_ring(x, y, CENTER_X, my + 16, 19, 12, 20.0f, 160.0f, pal, buf)) {
                 buf[x] = pal[PAL_MOUTH];
             }
         }
@@ -525,7 +483,7 @@ static void draw_mouth(int y, const face_state_t *st, const sprite_set_t *sp, ui
         int y1 = my + 3 + 22; if (y1 >= SCREEN_H) y1 = SCREEN_H - 1;
         if (y < y0 || y > y1) return;
         for (int x = x0; x <= x1; x++) {
-            if (in_arc_ring(x, y, CENTER_X, my + 4, 16, 11, 25.0f, 155.0f, pal, buf)) {
+            if (in_arc_ring(x, y, CENTER_X, my + 4, 17, 10, 25.0f, 155.0f, pal, buf)) {
                 buf[x] = pal[PAL_MOUTH];
             }
         }
