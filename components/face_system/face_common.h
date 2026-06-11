@@ -5,10 +5,6 @@
 #include <math.h>
 #include <stdbool.h>
 
-#define IMG1_240_WIDTH  240
-#define IMG1_240_HEIGHT 240
-extern const uint8_t img1_240_data[7200];
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -820,7 +816,6 @@ static inline void draw_music_note_scan(int y, float cx, float cy, float size,
 	/* Primary flag */
 	if (y >= stem_top && y <= stem_top + (int)(size * 0.5f)) {
 		float ft = (float)(y - stem_top) / (size * 0.5f);
-		float fx = stem_x + ft * size * 0.45f;
 		float fy_curve = stem_top + (1.0f - ft) * (1.0f - ft) * size * 0.1f;
 		if (fabsf(y - fy_curve - stem_top) < 2.0f || fabsf(y - (stem_top + ft * size * 0.5f)) < 1.5f) {
 			for (int dx = 0; dx <= (int)(ft * size * 0.4f); dx++) {
@@ -969,6 +964,32 @@ static inline void draw_finger_heart_scan(int y, float cx, float cy, float size,
             if (xl >= 0 && xl < screen_w) buf[xl] = color;
             if (xr >= 0 && xr < screen_w) buf[xr] = color;
         }
+    }
+}
+
+/* 萌系亮眼瞳孔：大实心瞳 + 双高光星光。逐扫描线在某只眼的 x 范围内调用。
+   (pcx,pcy)=瞳孔中心(屏幕px)，pr=瞳孔半径，shine=0..1 星光强度。
+   pupil_col=瞳孔填充色，sparkle_col=星光色（常规风格传 黑瞳/白星，nova 反相）。*/
+static inline void draw_kawaii_pupil(int y, int x_start, int x_end,
+                                     float pcx, float pcy, float pr, float shine,
+                                     uint16_t pupil_col, uint16_t sparkle_col,
+                                     uint16_t *buf) {
+    if (pr < 1.0f) return;
+    float pr_sq = pr * pr;
+    float cl1_r  = pr * 0.30f;
+    float cl1x   = pcx - pr * 0.32f, cl1y = pcy - pr * 0.34f;
+    float cl1_sq = cl1_r * cl1_r;
+    float cl2_r  = pr * 0.14f;
+    float cl2x   = pcx + pr * 0.26f, cl2y = pcy + pr * 0.24f;
+    float cl2_sq = cl2_r * cl2_r;
+    for (int x = x_start; x <= x_end; x++) {
+        float dx = (float)x - pcx, dy = (float)y - pcy;
+        if (dx * dx + dy * dy >= pr_sq) continue;
+        float s1x = (float)x - cl1x, s1y = (float)y - cl1y;
+        float s2x = (float)x - cl2x, s2y = (float)y - cl2y;
+        bool sp1 = (shine > 0.1f && s1x * s1x + s1y * s1y < cl1_sq);
+        bool sp2 = (shine > 0.1f && s2x * s2x + s2y * s2y < cl2_sq);
+        buf[x] = (sp1 || sp2) ? sparkle_col : pupil_col;
     }
 }
 
