@@ -20,15 +20,15 @@
 #define SNOUT_CY  155.0f
 #define SNOUT_RX   26.0f
 #define SNOUT_RY   17.0f
-#define NOSTRIL_R   4.0f
+#define NOSTRIL_R   4.5f
 #define NOSTRIL_DX  8.0f
 #define NOSTRIL_DY  3.0f
 
 /* Eyes: chibi oval */
 #define EYE_CY          104.0f
 #define EYE_HALF_SPACE   26.0f
-#define EYE_RX            9.0f
-#define EYE_RY           13.0f
+#define EYE_RX           10.0f
+#define EYE_RY           14.0f
 
 /* Mouth */
 #define MOUTH_Y    178.0f
@@ -195,7 +195,7 @@ static void draw_eye_pig(int y, const eye_params_t *ep, int eye_cx, int eye_cy,
 
     float pdx = ep->iris_center.dx * 3.5f;
     float pdy = ep->iris_center.dy * 3.5f;
-    float pupil_r = 6.5f;
+    float pupil_r = 7.0f;
     float pupil_r_sq = pupil_r * pupil_r;
     float shine = ep->shine_intensity;
 
@@ -216,7 +216,7 @@ static void draw_eye_pig(int y, const eye_params_t *ep, int eye_cx, int eye_cy,
             float shine1_y = pdy - pupil_r * 0.4f;
             float shine2_x = pdx + pupil_r * 0.3f;
             float shine2_y = pdy + pupil_r * 0.35f;
-            float shine_r = 2.2f * sqrtf(shine);
+            float shine_r = 2.4f * sqrtf(shine);
             float shine_r_sq = shine_r * shine_r;
             float shine2_r = 1.5f * sqrtf(shine);
             float shine2_r_sq = shine2_r * shine2_r;
