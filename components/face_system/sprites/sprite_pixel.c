@@ -66,13 +66,13 @@ static void draw_eye_impl(int y, const eye_params_t *ep, int eye_cx, int eye_cy,
                 }
             }
 
-            /* Black pupil (16×16 px block) */
-            int pupil_hw = PIXEL_GRID * 2;
+            /* Black pupil block (one grid larger for kawaii) */
+            int pupil_hw = PIXEL_GRID * 3;
             if (abs(qx - iris_qx) <= pupil_hw && abs(qy - iris_qy) <= pupil_hw) {
                 buf[x] = pal[PAL_PUPIL];
 
-                /* White shine inside pupil (upper-right) */
-                if (abs(qx - (iris_qx + PIXEL_GRID)) <= PIXEL_GRID / 2 &&
+                /* Single white-pixel sparkle (upper-left of pupil) */
+                if (abs(qx - (iris_qx - PIXEL_GRID)) <= PIXEL_GRID / 2 &&
                     abs(qy - (iris_qy - PIXEL_GRID)) <= PIXEL_GRID / 2) {
                     buf[x] = pal[PAL_SHINE];
                 }
@@ -192,7 +192,10 @@ static void draw_blush(int y, const face_state_t *st, const sprite_set_t *sp, ui
             if (x < 0 || x >= SCREEN_W) continue;
             int qx = (x / PIXEL_GRID) * PIXEL_GRID;
             if (abs(qx - base_qx) <= PIXEL_GRID * 2 && abs(qy - blush_qy) <= PIXEL_GRID * 2) {
-                buf[x] = pal[PAL_BLUSH];
+                /* Checkerboard fill for a soft pixel blush */
+                if (((qx / PIXEL_GRID) + (qy / PIXEL_GRID)) % 2 == 0) {
+                    buf[x] = pal[PAL_BLUSH];
+                }
             }
         }
     }
