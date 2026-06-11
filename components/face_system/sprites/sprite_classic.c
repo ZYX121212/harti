@@ -129,10 +129,20 @@ static void draw_eye_impl(int y, const eye_params_t *ep, float eye_r,
         buf[x] = blend_colors(buf[x], pal[PAL_SCLERA], 0.92f);
     }
 
-    /* glossy black pupil + two white sparkles over the sclera */
-    draw_kawaii_pupil(y, x_start, x_end,
-                      pupil_cx, pupil_cy, pupil_r,
-                      ep->shine_intensity, pal[PAL_PUPIL], pal[PAL_SCLERA], buf);
+    /* glossy black pupil + two white sparkles over the sclera.
+       Gate by the lid band at the eye's horizontal centre (arc=1 at fx=0) so the
+       pupil is clipped to the open eye and shrinks smoothly with a blink/squint
+       instead of floating over the background when the lids close. */
+    {
+        float corner0 = (ep->inner_corner.dy * 5.0f + ep->outer_corner.dy * 5.0f) * 0.5f;
+        float center_top = base_top + 5.0f * lid_open + corner0 * 0.5f;
+        float center_bot = base_bot - 3.0f * lid_open - corner0 * 0.3f;
+        if (fy >= center_top && fy <= center_bot) {
+            draw_kawaii_pupil(y, x_start, x_end,
+                              pupil_cx, pupil_cy, pupil_r,
+                              ep->shine_intensity, pal[PAL_PUPIL], pal[PAL_SCLERA], buf);
+        }
+    }
 }
 
 static void draw_eye_left(int y, const face_state_t *st, const sprite_set_t *sp, uint16_t *buf) {
